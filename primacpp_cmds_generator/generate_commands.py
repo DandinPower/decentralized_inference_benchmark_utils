@@ -127,8 +127,7 @@ def main(args: Namespace):
     cfg_path = Path(args.config_path)
     assert cfg_path.exists(), f"No such file: {cfg_path}"
     configs = json.loads(cfg_path.read_text(encoding="utf-8"))
-
-    assert Path(configs['gguf_file']).exists(), "GGUF file not found"
+    
     assert configs['world'] == 1 + len(configs['server_nodes']), "World size mismatch"
     assert configs['ctx_size'] >= 0 and configs['n_predict'] >= 0
 
