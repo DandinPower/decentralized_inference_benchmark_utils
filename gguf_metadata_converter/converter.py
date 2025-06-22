@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import argparse
 import mmap
 import struct
@@ -20,15 +21,11 @@ def align_up(x: int, a: int) -> int:
     return (x + a - 1) & ~(a - 1)
 
 
-# ---------------------------------------------------------------------------
-
-
 def scan_meta(mm: mmap.mmap) -> tuple[int, int]:
     """
-    Walk the memory‑mapped GGUF and return
+    Walk the memory-mapped GGUF and return
         meta_size   – first byte after metadata, padded to alignment
-        alignment   – value of KV  "general.alignment"  (or default 32)
-    The cursor advances via an integer offset (no reads/copies).
+        alignment   – value of KV "general.alignment" (or default 32)
     """
     off = 0
 
@@ -46,74 +43,71 @@ def scan_meta(mm: mmap.mmap) -> tuple[int, int]:
     # -- KV section ------------------------------------------------------------
     for _ in range(n_kv):
         k_len, = struct.unpack_from("<Q", mm, off); off += 8
-        key = mm[off:off + k_len].decode("utf‑8"); off += k_len
+        key = mm[off:off + k_len].decode("utf-8"); off += k_len
 
         v_type, = struct.unpack_from("<i", mm, off); off += 4
 
-        if v_type == 9:                                 # GGUF_TYPE_ARRAY
+        if v_type == 9:  # GGUF_TYPE_ARRAY
             arr_type, = struct.unpack_from("<i", mm, off); off += 4
             n_elem, = struct.unpack_from("<Q", mm, off); off += 8
 
-            if arr_type == 8:                           # array of strings
+            if arr_type == 8:  # array of strings
                 for _ in range(n_elem):
                     s_len, = struct.unpack_from("<Q", mm, off); off += 8 + s_len
             else:
                 elem_sz = _SCALAR_SIZE[arr_type]
                 off += n_elem * elem_sz
-        else:                                           # scalar
-            if v_type == 8:                             # string
+        else:  # scalar
+            if v_type == 8:  # string
                 s_len, = struct.unpack_from("<Q", mm, off); off += 8 + s_len
             else:
                 off += _SCALAR_SIZE[v_type]
 
-            # catch alignment KV while bytes are still warm in L1
             if key == "general.alignment":
+                # rewind back to the start of this value and re-read it as an unsigned int
                 alignment, = struct.unpack_from("<I", mm, off - _SCALAR_SIZE[v_type])
 
     # -- tensor descriptors ----------------------------------------------------
     for _ in range(n_tensors):
         name_len, = struct.unpack_from("<Q", mm, off); off += 8 + name_len
         n_dims, = struct.unpack_from("<I", mm, off); off += 4 + n_dims * 8
-        off += 4 + 8                                    # dtype + data‑offset
+        off += 4 + 8  # dtype + data-offset
 
     meta_end = off
     meta_size = align_up(meta_end, alignment)
     return meta_size, alignment
 
 
-# ---------------------------------------------------------------------------
-
-
-def write_meta_only(src: Path, dst: Path) -> None:
+def write_meta_only_inplace(src: Path) -> None:
+    # 1) mmap the file read-only, scan metadata, and slice out the stub
     with src.open("rb") as fh:
-        # map entire file read‑only – no pages are faulted until touched
         mm = mmap.mmap(fh.fileno(), 0, access=mmap.ACCESS_READ)
-
         meta_size, alignment = scan_meta(mm)
-
-        # slice is a *view* – copying happens only inside write()
-        with dst.open("wb") as fout:
-            fout.write(mm[:meta_size])
-
+        meta_bytes = mm[:meta_size]
         mm.close()
 
-    print(f"meta‑only bytes: {meta_size:,d}   alignment: {alignment}   →  {dst}")
+    # 2) truncate & overwrite the original file with only the metadata stub
+    with src.open("wb") as fout:
+        fout.write(meta_bytes)
 
-
-# ---------------------------------------------------------------------------
+    print(f"Replaced {src} with metadata-only stub ({meta_size:,d} bytes, alignment={alignment})")
 
 
 def main() -> None:
-    p = argparse.ArgumentParser(description="Generate a metadata‑only GGUF stub "
-                                            "using mmap so the weight blob is never read.")
-    p.add_argument("input", type=Path, help="path/to/00001-of-000NN.gguf")
-    p.add_argument("output", type=Path, help="metadata‑only *.gguf to create")
+    p = argparse.ArgumentParser(
+        description="Replace a GGUF file in-place with a metadata-only stub."
+    )
+    p.add_argument(
+        "input",
+        type=Path,
+        help="path/to/00001-of-000NN.gguf (will be overwritten)",
+    )
     args = p.parse_args()
 
-    if args.output.exists():
-        p.error(f"{args.output} already exists")
+    if not args.input.exists():
+        p.error(f"{args.input} does not exist")
 
-    write_meta_only(args.input, args.output)
+    write_meta_only_inplace(args.input)
 
 
 if __name__ == "__main__":
