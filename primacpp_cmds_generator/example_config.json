@@ -1,0 +1,36 @@
+{
+    "gguf_file": "../gguf_examples/Llama-3.2-1B-Instruct-Q4_K_M.gguf",
+    "world": 3,
+    "ctx_size": 4096,
+    "n_predict": 1024,
+    "master_node": {
+        "layer_window_size": 32,
+        "loopback_ip": "127.0.0.1",
+        "public_ip": "tw-05.com",
+        "data_port": 9000,
+        "signal_port": 9001,
+        "public_data_port": 52000,
+        "public_signal_port": 52820,
+        "splits": "0,1"
+    },
+    "server_nodes": [
+        {
+            "layer_window_size": 16,
+            "public_ip": "tw-06.com",
+            "data_port": 9002,
+            "signal_port": 9003,
+            "public_data_port": 52002,
+            "public_signal_port": 52823,
+            "splits": "2"
+        },
+        {
+            "layer_window_size": 16,
+            "public_ip": "tw-07.com",
+            "data_port": 9004,
+            "signal_port": 9005,
+            "public_data_port": 52004,
+            "public_signal_port": 52825,
+            "splits": "3"
+        }
+    ]
+}
