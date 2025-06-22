@@ -29,38 +29,38 @@ Create a JSON file (e.g. `example_config.json`) with the following structure:
 
 ```json
 {
-    "gguf_file": "gguf_examples/Llama-3.2-1B-Instruct-Q4_K_M.gguf",
+    "gguf_file": "download/Llama-3.2-1B-Instruct-Q4_K_M-00001-of-00003.gguf",
     "world": 3,
     "ctx_size": 4096,
     "n_predict": 1024,
     "master_node": {
-        "layer_window_size": 32,
+        "layer_window_size": 4,
         "loopback_ip": "127.0.0.1",
-        "public_ip": "tw-05.com",
+        "public_ip": "tw-05.access.glows.ai",
         "data_port": 9000,
         "signal_port": 9001,
-        "public_data_port": 52000,
-        "public_signal_port": 52820,
-        "splits": "0,1"
+        "public_data_port": 25443,
+        "public_signal_port": 25751,
+        "splits": "0,1,2"
     },
     "server_nodes": [
         {
-            "layer_window_size": 16,
-            "public_ip": "tw-06.com",
-            "data_port": 9002,
-            "signal_port": 9003,
-            "public_data_port": 52002,
-            "public_signal_port": 52823,
-            "splits": "2"
+            "layer_window_size": 8,
+            "public_ip": "tw-05.access.glows.ai",
+            "data_port": 9000,
+            "signal_port": 9002,
+            "public_data_port": 25142,
+            "public_signal_port": 25450,
+            "splits": "0,1"
         },
         {
-            "layer_window_size": 16,
-            "public_ip": "tw-07.com",
-            "data_port": 9004,
-            "signal_port": 9005,
-            "public_data_port": 52004,
-            "public_signal_port": 52825,
-            "splits": "3"
+            "layer_window_size": 4,
+            "public_ip": "tw-05.access.glows.ai",
+            "data_port": 9000,
+            "signal_port": 9001,
+            "public_data_port": 25149,
+            "public_signal_port": 25457,
+            "splits": "1,2"
         }
     ]
 }
@@ -71,7 +71,7 @@ Create a JSON file (e.g. `example_config.json`) with the following structure:
 Run the script with your prompt and path to the config:
 
 ```bash
-python generate_commands.py --prompt "Hello, world!" --config-path example_config.json [--multi-splits]
+python generate_commands.py --prompt "<｜User｜>What is 1+1?<｜Assistant｜>" --config-path config.json [--multi-splits]
 ```
 
 * `--prompt`: The text generation prompt.
@@ -90,16 +90,16 @@ You can directly copy and paste these lines into your shell on the respective ma
 ### Example
 
 ```bash
-$ python generate_commands.py --prompt "Once upon a time" --config-path example_config.json --multi-splits
+$ python generate_commands.py --prompt "<｜User｜>What is 1+1?<｜Assistant｜>" --config-path config.json --multi-splits
 Master Node Command:
 ------------------------------------------------------------
-./llama-cli --splits 0,1 -m ../gguf_examples/Llama-3.2-1B-Instruct-Q4_K_M.gguf -c 4096 -n 1024 -p "Once upon a time" --world 3 --rank 0 --prefetch -lw "32,16,16" -ngl 32 --master 127.0.0.1 --data_port 9000 --signal_port 9001 --next tw-06.com --master_data_port 52000 --next_node_data_port 52002 --next_node_signal_port 52823
+./llama-cli --splits 0,1,2 -m download/Llama-3.2-1B-Instruct-Q4_K_M-00001-of-00003.gguf -c 4096 -n 1024 -p "<｜User｜>What is 1+1?<｜Assistant｜>" --world 3 --rank 0 --prefetch -lw "4,8,4" -ngl 4 --master 127.0.0.1 --data_port 9000 --signal_port 9001 --next tw-05.access.glows.ai --master_data_port 25443 --next_node_data_port 25142 --next_node_signal_port 25450
 ------------------------------------------------------------
 Server 0 Node Command:
-./llama-cli --splits 2 -m ../gguf_examples/Llama-3.2-1B-Instruct-Q4_K_M.gguf -c 4096 -n 1024 -p "Once upon a time" --world 3 --rank 1 --prefetch -lw "32,16,16" -ngl 16 --master tw-05.com --data_port 9002 --signal_port 9003 --next tw-07.com --master_data_port 52000 --next_node_data_port 52004 --next_node_signal_port 52825
+./llama-cli --splits 0,1 -m download/Llama-3.2-1B-Instruct-Q4_K_M-00001-of-00003.gguf --world 3 --rank 1 --prefetch -ngl 8 --master tw-05.access.glows.ai --data_port 9000 --signal_port 9002 --next tw-05.access.glows.ai --master_data_port 25443 --next_node_data_port 25149 --next_node_signal_port 25457
 ------------------------------------------------------------
 Server 1 Node Command:
-./llama-cli --splits 3 -m ../gguf_examples/Llama-3.2-1B-Instruct-Q4_K_M.gguf -c 4096 -n 1024 -p "Once upon a time" --world 3 --rank 2 --prefetch -lw "32,16,16" -ngl 16 --master tw-05.com --data_port 9004 --signal_port 9005 --next tw-05.com --master_data_port 52000 --next_node_data_port 52000 --next_node_signal_port 52820
+./llama-cli --splits 1,2 -m download/Llama-3.2-1B-Instruct-Q4_K_M-00001-of-00003.gguf --world 3 --rank 2 --prefetch -ngl 4 --master tw-05.access.glows.ai --data_port 9000 --signal_port 9001 --next tw-05.access.glows.ai --master_data_port 25443 --next_node_data_port 25443 --next_node_signal_port 25751
 ------------------------------------------------------------
 ```
 
