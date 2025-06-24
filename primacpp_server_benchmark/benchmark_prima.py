@@ -1,0 +1,180 @@
+import asyncio, argparse, json, time, csv, re
+import httpx
+import tiktoken
+
+from pathlib import Path
+
+URL = "http://127.0.0.1:8080/v1/chat/completions"
+HEADERS = {"Content-Type": "application/json"}
+PAYLOAD = {
+    "model": "Deepseek-R1-Distill-Llama-8B",
+    "messages": [{"role": "user", "content": "Explain what is edge AI in detail?"}],
+    "max_tokens": 1000,
+    "temperature": 0.7,
+    "stream": True,
+}
+
+DEFAULT_TOKENIZER = "o200k_base"
+
+enc = tiktoken.get_encoding(DEFAULT_TOKENIZER)
+def count_tokens(text: str) -> int:
+    return len(enc.encode(text))
+
+JSON_RE = re.compile(r"^data:\s*(\{.*})\s*$")
+
+# ---------- per-request worker ----------
+async def run_single(client: httpx.AsyncClient, idx: int, results: list[dict],
+                     url: str, headers: dict, payload: dict):
+    meta = {"id": idx}
+    start = time.perf_counter()
+
+    async with client.stream("POST", url, headers=headers, json=payload, timeout=None) as r:
+        if r.status_code != 200:
+            meta.update(error=f"HTTP {r.status_code}", ttft=None,
+                         tpot=None, tks=None, tokens=0)
+            results.append(meta)
+            return
+
+        first_tok_time = last_tok_time = None
+        token_count = 0
+
+        async for line in r.aiter_lines():
+            if not line or line.startswith("data: [DONE]"):
+                if line and line.startswith("data: [DONE]"):
+                    break
+                continue
+
+            m = JSON_RE.match(line)
+            if not m:
+                continue
+
+            chunk = json.loads(m.group(1))
+            if "choices" not in chunk:
+                continue
+
+            delta = chunk["choices"][0]["delta"].get("content", "")
+            if not delta:
+                continue
+
+            now = time.perf_counter()
+            token_count += count_tokens(delta)
+
+            if first_tok_time is None:
+                first_tok_time = now
+            last_tok_time = now
+
+    end = time.perf_counter()
+    # ----- metrics -----
+    ttft = (first_tok_time - start) if first_tok_time else None
+    span = (last_tok_time - first_tok_time) if (token_count > 1 and first_tok_time) else 0
+    tpot = (span / (token_count - 1)) if token_count > 1 else None
+    tks  = (token_count / (end - start)) if token_count else 0
+
+    meta.update(ttft=ttft, tpot=tpot, tks=tks, tokens=token_count,
+                wall=end - start)
+    results.append(meta)
+
+# ---------- main orchestration ----------
+async def benchmark(concurrency_levels: list[int], url: str,
+                    headers: dict, payload: dict):
+    out_rows = []
+
+    async with httpx.AsyncClient(http2=False) as client:
+        for conc in concurrency_levels:
+            print(f"\n=== {conc} concurrent request(s) ===")
+            burst_results: list[dict] = []
+            burst_start = time.perf_counter()
+
+            tasks = [
+                asyncio.create_task(
+                    run_single(client, i, burst_results, url, headers, payload)
+                )
+                for i in range(conc)
+            ]
+            await asyncio.gather(*tasks)
+            burst_end = time.perf_counter()
+
+            # aggregate
+            sys_tkn = sum(r["tokens"] for r in burst_results)
+            sys_tps = sys_tkn / (burst_end - burst_start) if sys_tkn else 0
+
+            # pretty print
+            print("idx  ttft(s)  tpot(s)  req_tks  tokens")
+            for r in sorted(burst_results, key=lambda x: x["id"]):
+                print(f"{r['id']:>3}  {r['ttft'] or '-':>7.3f}  "
+                      f"{r['tpot'] or '-':>7.3f}  {r['tks'] or 0:>7.1f}  "
+                      f"{r['tokens']:>6}")
+                out_rows.append({"concurrency": conc, **r})
+
+            print(f"System throughput: {sys_tps:.1f} tk/s")
+            out_rows.append({
+                "concurrency": conc, "id": "ALL", "ttft": None,
+                "tpot": None, "tks": sys_tps, "tokens": sys_tkn,
+                "wall": burst_end - burst_start
+            })
+
+    # CSV export
+    csv_path = Path("benchmark_results.csv")
+    with csv_path.open("w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=out_rows[0].keys())
+        writer.writeheader()
+        writer.writerows(out_rows)
+    print(f"\nDetailed results written to {csv_path.resolve()}")
+
+
+if __name__ == "__main__":
+    p = argparse.ArgumentParser(
+        description="Benchmark prima.cpp LLM service at varying concurrencies"
+    )
+    p.add_argument(
+        "-c", "--concurrency-levels",
+        nargs="+", type=int,
+        default=[1, 2, 4, 8, 16],
+        help="List of concurrency levels to test, e.g. -c 1 2 4 8 16"
+    )
+    p.add_argument(
+        "--host", type=str, default="127.0.0.1",
+        help="Server host (default: 127.0.0.1)"
+    )
+    p.add_argument(
+        "--port", type=int, default=8080,
+        help="Server port (default: 8080)"
+    )
+    p.add_argument(
+        "--endpoint", type=str, default="/v1/chat/completions",
+        help="API endpoint path (default: /v1/chat/completions)"
+    )
+    p.add_argument(
+        "--model", type=str,
+        default="Deepseek-R1-Distill-Llama-8B",
+        help="Model name to request (default: Deepseek-R1-Distill-Llama-8B)"
+    )
+    p.add_argument(
+        "--prompt", type=str,
+        default="Explain what is edge AI in detail?",
+        help="User prompt content (default: edge AI explanation)"
+    )
+    p.add_argument(
+        "--max-tokens", dest="max_tokens", type=int,
+        default=1000,
+        help="Max tokens per request (default: 1000)"
+    )
+    args = p.parse_args()
+
+    # Build URL, headers, and payload from args
+    full_url = f"http://{args.host}:{args.port}{args.endpoint}"
+    headers = {"Content-Type": "application/json"}
+    payload = {
+        "model": args.model,
+        "messages": [{"role": "user", "content": args.prompt}],
+        "max_tokens": args.max_tokens,
+        "temperature": 0.7,
+        "stream": True,
+    }
+
+    asyncio.run(benchmark(
+        args.concurrency_levels,
+        full_url,
+        headers,
+        payload
+    ))

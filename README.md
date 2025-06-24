@@ -192,6 +192,73 @@ This converter strips out all tensor data from the first-split file (e.g. `prefi
 
 The script will print the size of the retained metadata and overwrite the original file.
 
+## prima.cpp Server Mode Benchmark Utility
+
+This benchmark tool measures latency and throughput of a prima.cpp-based LLM service under varying concurrency levels.
+
+### Features
+
+* Configurable server `host`, `port`, and HTTP `endpoint`
+* Customizable `model`, `prompt`, and `max_tokens`
+* Variable concurrency levels via CLI (`-c/--concurrency-levels`)
+* Measures per-request TTFT (time-to-first-token), TPOT (time-per-output-token), and tokens/sec
+* Computes aggregate system throughput (tokens/sec) per burst
+* Outputs results to console and saves a CSV (`benchmark_results.csv`)
+
+### Installation
+
+```bash
+git clone https://github.com/your-org/prima.cpp_benchmark_utils.git
+cd prima.cpp_benchmark_utils
+pip install httpx[http2] tiktoken
+```
+
+### Usage
+
+```bash
+python benchmark_prima.py \
+  -c 1 2 4 8 16 \
+  --host 127.0.0.1 \
+  --port 8080 \
+  --endpoint /v1/chat/completions \
+  --model "Deepseek-R1-Distill-Llama-8B" \
+  --prompt "Explain what is edge AI in detail?" \
+  --max-tokens 1000
+```
+
+#### Arguments
+
+| Option                     | Description                                                 |
+| -------------------------- | ----------------------------------------------------------- |
+| `-c, --concurrency-levels` | List of concurrency levels (e.g. `1 2 4 8 16`)              |
+| `--host`                   | Server host (default: `127.0.0.1`)                          |
+| `--port`                   | Server port (default: `8080`)                               |
+| `--endpoint`               | API endpoint path (default: `/v1/chat/completions`)         |
+| `--model`                  | Model name (default: `Deepseek-R1-Distill-Llama-8B`)        |
+| `--prompt`                 | Prompt text (default: `Explain what is edge AI in detail?`) |
+| `--max-tokens`             | Max tokens per request (default: `1000`)                    |
+
+### Output
+
+* **Console**: Per-request metrics and system throughput for each concurrency level
+* **CSV**: `benchmark_results.csv` with detailed columns:
+
+  * `concurrency`, `id`, `ttft`, `tpot`, `tks`, `tokens`, `wall`
+
+### Example Output
+
+```
+=== 4 concurrent request(s) ===
+idx  ttft(s)  tpot(s)  req_tks  tokens
+  0    0.150    0.010     95.3    950
+  1    0.152    0.011     94.8    944
+  2    0.148    0.010     96.1    961
+  3    0.155    0.011     93.2    932
+System throughput: 374.5 tk/s
+
+Detailed results written to /path/to/benchmark_results.csv
+```
+
 # License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
