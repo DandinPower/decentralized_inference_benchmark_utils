@@ -208,8 +208,6 @@ This benchmark tool measures latency and throughput of a prima.cpp-based LLM ser
 ### Installation
 
 ```bash
-git clone https://github.com/your-org/prima.cpp_benchmark_utils.git
-cd prima.cpp_benchmark_utils
 pip install httpx[http2] tiktoken
 ```
 
