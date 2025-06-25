@@ -88,6 +88,16 @@ async def benchmark(concurrency_levels: list[int], url: str,
             sys_tkn = sum(r["tokens"] for r in burst_results)
             sys_tps = sys_tkn / (burst_end - burst_start) if sys_tkn else 0
 
+            # calculate user-level averages (only for successful requests)
+            valid_results = [r for r in burst_results if r["ttft"] is not None]
+            if valid_results:
+                avg_ttft = sum(r["ttft"] for r in valid_results) / len(valid_results)
+                avg_tpot = sum(r["tpot"] for r in valid_results if r["tpot"] is not None) / len([r for r in valid_results if r["tpot"] is not None]) if any(r["tpot"] is not None for r in valid_results) else 0
+                avg_req_tks = sum(r["tks"] for r in valid_results) / len(valid_results)
+                avg_tokens = sum(r["tokens"] for r in valid_results) / len(valid_results)
+            else:
+                avg_ttft = avg_tpot = avg_req_tks = avg_tokens = 0
+
             # pretty print
             print("idx  ttft(s)  tpot(s)  req_tks  tokens")
             for r in sorted(burst_results, key=lambda x: x["id"]):
@@ -96,7 +106,13 @@ async def benchmark(concurrency_levels: list[int], url: str,
                       f"{r['tokens']:>6}")
                 out_rows.append({"concurrency": conc, **r})
 
+            print(f"User averages: ttft={avg_ttft:.3f}s, tpot={avg_tpot:.3f}s, req_tks={avg_req_tks:.1f}, tokens={avg_tokens:.1f}")
             print(f"System throughput: {sys_tps:.1f} tk/s")
+            out_rows.append({
+                "concurrency": conc, "id": "AVG", "ttft": avg_ttft,
+                "tpot": avg_tpot, "tks": avg_req_tks, "tokens": avg_tokens,
+                "wall": None
+            })
             out_rows.append({
                 "concurrency": conc, "id": "ALL", "ttft": None,
                 "tpot": None, "tks": sys_tps, "tokens": sys_tkn,
