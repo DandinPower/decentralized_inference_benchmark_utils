@@ -1,0 +1,41 @@
+{
+    "gguf_file": "/datadrive/gguf/DeepSeek-R1-Distill-Llama-70B/DeepSeek-R1-Distill-Llama-70B-Q4_K_M.gguf",
+    "world": 4,
+    "ctx_size": 4096,
+    "n_predict": 1024,
+    "master_node": {
+        "layer_window_size": 16,
+        "loopback_ip": "127.0.0.1",
+        "public_ip": "tw-05.access.glows.ai",
+        "data_port": 9000,
+        "signal_port": 9001,
+        "public_data_port": 25549,
+        "public_signal_port": 25857
+    },
+    "server_nodes": [
+        {
+            "layer_window_size": 16,
+            "public_ip": "tw-05.access.glows.ai",
+            "data_port": 9000,
+            "signal_port": 9001,
+            "public_data_port": 25269,
+            "public_signal_port": 25577
+        },
+        {
+            "layer_window_size": 16,
+            "public_ip": "tw-05.access.glows.ai",
+            "data_port": 9000,
+            "signal_port": 9001,
+            "public_data_port": 25885,
+            "public_signal_port": 26193
+        },
+        {
+            "layer_window_size": 32,
+            "public_ip": "tw-07.access.glows.ai",
+            "data_port": 9000,
+            "signal_port": 9001,
+            "public_data_port": 27005,
+            "public_signal_port": 27389
+        }
+    ]
+}

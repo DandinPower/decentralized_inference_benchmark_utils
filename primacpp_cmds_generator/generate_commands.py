@@ -10,8 +10,6 @@ def assert_int_fields(d: dict, *fields: str):
 def build_master_cmd(
     gguf_file: str,
     ctx_size: int,
-    n_predict: int,
-    prompt: str,
     world: int,
     rank: int,
     layer_windows: str,
@@ -24,16 +22,29 @@ def build_master_cmd(
     next_data_port: int,
     next_signal_port: int,
     splits: Optional[str] = None,
+    n_predict: Optional[int] = None,
+    prompt: Optional[str] = None,
+    server_host: Optional[str] = None,
+    server_port: Optional[int] = None,
+    number_process: Optional[int] = None
 ) -> str:
-    args = ["./llama-cli"]
+    if server_host:
+        args = ["./llama-server"]
+        args += ["--host", str(server_host)]
+        args += ["--port", str(server_port)]
+        if number_process:
+            args += ["-np", str(number_process)]
+    else:
+        args = ["./llama-cli"]
+        args += ["-n", str(n_predict)]
+        args += ["-p", f'"{prompt}"']
+
     if splits:
         args += ["--splits", splits]
 
     args += [
         "-m", gguf_file,
         "-c", str(ctx_size),
-        "-n", str(n_predict),
-        "-p", f'"{prompt}"',
         "--world", str(world),
         "--rank", str(rank),
         "--prefetch",
@@ -61,11 +72,11 @@ def build_server_cmd(
     master_data_port: int,
     next_data_port: int,
     next_signal_port: int,
-    splits: Optional[str] = None,
-) -> str:
+    splits: Optional[str] = None
+) -> str: 
     args = ["./llama-cli"]
     if splits:
-        args += ["--splits", splits]
+        args += ["--splits", splits]  
 
     args += [
         "-m", gguf_file,
@@ -83,10 +94,10 @@ def build_server_cmd(
     ]
     return " ".join(args)
 
-def generate_master_nodes_cmd(configs: dict, prompt: str, if_multi_splits: bool) -> str:
+def generate_master_nodes_cmd(configs: dict, prompt: str, multi_splits: bool, server_mode: bool) -> str:
     m = configs['master_node']
     n = configs['server_nodes'][0]
-    splits = m['splits'] if if_multi_splits else None
+    splits = m['splits'] if multi_splits else None
 
     # one‐time build of the full layer_windows string
     windows = [configs['master_node']['layer_window_size']] + [
@@ -94,15 +105,29 @@ def generate_master_nodes_cmd(configs: dict, prompt: str, if_multi_splits: bool)
     ]
     layer_windows = ",".join(map(str, windows))
 
-    # validate
+    # validate common fields
     assert_int_fields(m, 'data_port','signal_port','public_data_port')
     assert_int_fields(n, 'public_data_port','public_signal_port')
+
+    # validate server mode specific fields only when needed
+    if server_mode:
+        assert_int_fields(configs['master_node'], 'server_port')
+        assert 'server_host' in configs['master_node'], "Missing server_host field"
+        server_host = configs['master_node']['server_host']
+        server_port = configs['master_node']['server_port']
+        number_process = configs['master_node'].get('number_process')
+        n_predict = None
+        prompt_arg = None
+    else:
+        server_host = None
+        server_port = None
+        number_process = None
+        n_predict = configs['n_predict']
+        prompt_arg = prompt
 
     return build_master_cmd(
         gguf_file=configs['gguf_file'],
         ctx_size=configs['ctx_size'],
-        n_predict=configs['n_predict'],
-        prompt=prompt,
         world=configs['world'],
         rank=0,
         layer_windows=layer_windows,
@@ -115,13 +140,18 @@ def generate_master_nodes_cmd(configs: dict, prompt: str, if_multi_splits: bool)
         next_data_port=n['public_data_port'],
         next_signal_port=n['public_signal_port'],
         splits=splits,
+        n_predict=n_predict,
+        prompt=prompt_arg,
+        server_host=server_host,
+        server_port=server_port,
+        number_process=number_process
     )
 
-def generate_server_nodes_cmds(configs: dict, prompt: str, if_multi_splits: bool) -> list[str]:
+def generate_server_nodes_cmds(configs: dict, multi_splits: bool) -> list[str]:
     m = configs['master_node']
     servers = configs['server_nodes']
     world = configs['world']
-    splits_flag = if_multi_splits
+    splits_flag = multi_splits
 
     cmds = []
     for idx, srv in enumerate(servers, start=1):
@@ -183,24 +213,31 @@ def main(args: Namespace):
     c = json.loads(cfg.read_text(encoding="utf-8"))
 
     assert c['world'] == 1 + len(c['server_nodes']), "World size mismatch"
-    assert c['ctx_size'] >= 0 and c['n_predict'] >= 0
-
-    # Read prompt from file
-    prompt = read_prompt_from_file(args.prompt_path)
+    assert c['ctx_size'] >= 0
+    
+    # Only validate n_predict and read prompt for CLI mode
+    if not args.server_mode:
+        assert c['n_predict'] >= 0
+        if not args.prompt_path:
+            raise ValueError("--prompt-path is required for CLI mode")
+        prompt = read_prompt_from_file(args.prompt_path)
+    else:
+        prompt = None
 
     print("Master Node Command:")
     print("-"*60)
-    print(generate_master_nodes_cmd(c, prompt, args.multi_splits))
+    print(generate_master_nodes_cmd(c, prompt, args.multi_splits, args.server_mode))
     print("-"*60)
 
-    for i, cmd in enumerate(generate_server_nodes_cmds(c, prompt, args.multi_splits)):
+    for i, cmd in enumerate(generate_server_nodes_cmds(c, args.multi_splits)):
         print(f"Server {i} Node Command:")
         print(cmd)
         print("-"*60)
 
 if __name__ == "__main__":
     p = ArgumentParser()
-    p.add_argument("--prompt-path", required=True, help="Path to .txt file containing the prompt")
+    p.add_argument("--prompt-path", required=False, help="Path to .txt file containing the prompt (required for CLI mode)")
     p.add_argument("--config-path", required=True)
     p.add_argument("--multi-splits", action="store_true")
+    p.add_argument("--server-mode", action="store_true")
     main(p.parse_args())
