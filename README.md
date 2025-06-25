@@ -286,8 +286,9 @@ This benchmark tool measures latency and throughput of a prima.cpp-based LLM ser
 * Customizable `model`, `prompt`, and `max_tokens`
 * Variable concurrency levels via CLI (`-c/--concurrency-levels`)
 * Measures per-request TTFT (time-to-first-token), TPOT (time-per-output-token), and tokens/sec
+* Calculates user-level averages across all concurrent requests
 * Computes aggregate system throughput (tokens/sec) per burst
-* Outputs results to console and saves a CSV (`benchmark_results.csv`)
+* Outputs results to console and saves a structured CSV with user averages and system totals
 
 ### Installation
 
@@ -324,10 +325,15 @@ python benchmark_prima.py \
 
 ### Output
 
-* **Console**: Per-request metrics and system throughput for each concurrency level
-* **CSV**: Optional detailed results file (only created if `--csv-output` is specified) with columns:
+* **Console**: Per-request metrics, user averages, and system throughput for each concurrency level
+* **CSV**: Optional structured results file (only created if `--csv-output` is specified) with format:
 
-  * `concurrency`, `id`, `ttft`, `tpot`, `tks`, `tokens`, `wall`
+  | concurrency | ttft (s) | tpot (s) | throughput (tk/s) | generated tokens | total duration (s) |
+  |-------------|----------|----------|-------------------|------------------|--------------------|
+  | 1 (user avg) | 0.150 | 0.010 | 95.3 | 950.0 | |
+  | 1 (system total) | | | 374.5 | 3787 | 10.120 |
+  | 4 (user avg) | 0.151 | 0.011 | 94.7 | 946.8 | |
+  | 4 (system total) | | | 1498.2 | 3787 | 2.528 | |
 
 ### Example Output
 
@@ -338,6 +344,7 @@ idx  ttft(s)  tpot(s)  req_tks  tokens
   1    0.152    0.011     94.8    944
   2    0.148    0.010     96.1    961
   3    0.155    0.011     93.2    932
+User averages: ttft=0.151s, tpot=0.011s, req_tks=94.9, tokens=946.8
 System throughput: 374.5 tk/s
 
 Detailed results written to /path/to/benchmark_results.csv  # Only if --csv-output is specified

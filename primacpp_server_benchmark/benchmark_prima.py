@@ -67,7 +67,7 @@ async def run_single(client: httpx.AsyncClient, idx: int, results: list[dict],
 # ---------- main orchestration ----------
 async def benchmark(concurrency_levels: list[int], url: str,
                     headers: dict, payload: dict, csv_output_path: str = None):
-    out_rows = []
+    csv_data = []
 
     async with httpx.AsyncClient(http2=False) as client:
         for conc in concurrency_levels:
@@ -104,28 +104,66 @@ async def benchmark(concurrency_levels: list[int], url: str,
                 print(f"{r['id']:>3}  {r['ttft'] or '-':>7.3f}  "
                       f"{r['tpot'] or '-':>7.3f}  {r['tks'] or 0:>7.1f}  "
                       f"{r['tokens']:>6}")
-                out_rows.append({"concurrency": conc, **r})
 
             print(f"User averages: ttft={avg_ttft:.3f}s, tpot={avg_tpot:.3f}s, req_tks={avg_req_tks:.1f}, tokens={avg_tokens:.1f}")
             print(f"System throughput: {sys_tps:.1f} tk/s")
-            out_rows.append({
-                "concurrency": conc, "id": "AVG", "ttft": avg_ttft,
-                "tpot": avg_tpot, "tks": avg_req_tks, "tokens": avg_tokens,
-                "wall": None
+            
+            # Store data for CSV output
+            csv_data.append({
+                "type": "user_avg",
+                "concurrency": conc,
+                "ttft_s": avg_ttft,
+                "tpot_s": avg_tpot,
+                "throughput_tk_s": avg_req_tks,
+                "generated_tokens": avg_tokens,
+                "total_duration_s": None
             })
-            out_rows.append({
-                "concurrency": conc, "id": "ALL", "ttft": None,
-                "tpot": None, "tks": sys_tps, "tokens": sys_tkn,
-                "wall": burst_end - burst_start
+            csv_data.append({
+                "type": "system_total",
+                "concurrency": conc,
+                "ttft_s": None,
+                "tpot_s": None,
+                "throughput_tk_s": sys_tps,
+                "generated_tokens": sys_tkn,
+                "total_duration_s": burst_end - burst_start
             })
 
     # CSV export (optional)
     if csv_output_path:
         csv_path = Path(csv_output_path)
         with csv_path.open("w", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=out_rows[0].keys())
-            writer.writeheader()
-            writer.writerows(out_rows)
+            writer = csv.writer(f)
+            
+            # Write header
+            writer.writerow(["concurrency", "ttft (s)", "tpot (s)", "throughput (tk/s)", "generated tokens", "total duration (s)"])
+            
+            # Group by concurrency level
+            for conc in concurrency_levels:
+                # Write user average row
+                user_data = next(d for d in csv_data if d["type"] == "user_avg" and d["concurrency"] == conc)
+                writer.writerow([
+                    f"{conc} (user avg)", 
+                    f"{user_data['ttft_s']:.3f}" if user_data['ttft_s'] else "",
+                    f"{user_data['tpot_s']:.3f}" if user_data['tpot_s'] else "",
+                    f"{user_data['throughput_tk_s']:.1f}" if user_data['throughput_tk_s'] else "",
+                    f"{user_data['generated_tokens']:.1f}" if user_data['generated_tokens'] else "",
+                    f"{user_data['total_duration_s']:.3f}" if user_data['total_duration_s'] else ""
+                ])
+                
+                # Write system total row
+                sys_data = next(d for d in csv_data if d["type"] == "system_total" and d["concurrency"] == conc)
+                writer.writerow([
+                    f"{conc} (system total)",
+                    f"{sys_data['ttft_s']:.3f}" if sys_data['ttft_s'] else "",
+                    f"{sys_data['tpot_s']:.3f}" if sys_data['tpot_s'] else "",
+                    f"{sys_data['throughput_tk_s']:.1f}" if sys_data['throughput_tk_s'] else "",
+                    f"{sys_data['generated_tokens']:.0f}" if sys_data['generated_tokens'] else "",
+                    f"{sys_data['total_duration_s']:.3f}" if sys_data['total_duration_s'] else ""
+                ])
+                
+                # Add empty row for separation
+                writer.writerow([])
+                
         print(f"\nDetailed results written to {csv_path.resolve()}")
 
 
