@@ -68,15 +68,29 @@ Create a JSON file (e.g. `example_config.json`) with the following structure:
 
 ### Usage
 
-Run the script with your prompt and path to the config:
+Run the script with your prompt file and path to the config:
 
 ```bash
-python generate_commands.py --prompt "<｜User｜>What is 1+1?<｜Assistant｜>" --config-path config.json [--multi-splits]
+python generate_commands.py --prompt-path prompt.txt --config-path config.json [--multi-splits]
 ```
 
-* `--prompt`: The text generation prompt.
+* `--prompt-path`: Path to a `.txt` file containing the text generation prompt.
 * `--config-path`: Path to your JSON configuration file.
 * `--multi-splits`: Include this flag to pass `--splits` to `llama-cli`.
+
+#### Prompt File Format
+
+Create a `.txt` file containing your prompt. The script will read all lines and join them into a single line for the command generation. For example:
+
+**prompt.txt:**
+```
+<｜User｜>
+What is 1+1?
+Please explain step by step.
+<｜Assistant｜>
+```
+
+This will be converted to: `<｜User｜> What is 1+1? Please explain step by step. <｜Assistant｜>`
 
 ### Output
 
@@ -90,7 +104,7 @@ You can directly copy and paste these lines into your shell on the respective ma
 ### Example
 
 ```bash
-$ python generate_commands.py --prompt "<｜User｜>What is 1+1?<｜Assistant｜>" --config-path config.json --multi-splits
+$ python generate_commands.py --prompt-path prompt.txt --config-path config.json --multi-splits
 Master Node Command:
 ------------------------------------------------------------
 ./llama-cli --splits 0,1,2 -m download/Llama-3.2-1B-Instruct-Q4_K_M-00001-of-00003.gguf -c 4096 -n 1024 -p "<｜User｜>What is 1+1?<｜Assistant｜>" --world 3 --rank 0 --prefetch -lw "4,8,4" -ngl 4 --master 127.0.0.1 --data_port 9000 --signal_port 9001 --next tw-05.access.glows.ai --master_data_port 25443 --next_node_data_port 25142 --next_node_signal_port 25450

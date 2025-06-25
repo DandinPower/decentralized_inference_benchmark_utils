@@ -150,6 +150,33 @@ def generate_server_nodes_cmds(configs: dict, prompt: str, if_multi_splits: bool
 
     return cmds
 
+def read_prompt_from_file(prompt_path: str) -> str:
+    """Read prompt from a text file and convert it to a single line."""
+    prompt_file = Path(prompt_path)
+    
+    # Check if file exists
+    if not prompt_file.exists():
+        raise FileNotFoundError(f"Prompt file not found: {prompt_path}")
+    
+    # Check if file has .txt extension
+    if not prompt_file.suffix.lower() == '.txt':
+        raise ValueError(f"Prompt file must have .txt extension: {prompt_path}")
+    
+    # Read all lines and join them into a single line
+    try:
+        with open(prompt_file, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+        
+        # Strip whitespace from each line and join with space
+        prompt = ' '.join(line.strip() for line in lines if line.strip())
+        
+        if not prompt:
+            raise ValueError(f"Prompt file is empty or contains only whitespace: {prompt_path}")
+        
+        return prompt
+    except Exception as e:
+        raise RuntimeError(f"Error reading prompt file {prompt_path}: {e}")
+
 def main(args: Namespace):
     cfg = Path(args.config_path)
     assert cfg.exists(), f"No such file: {cfg}"
@@ -158,19 +185,22 @@ def main(args: Namespace):
     assert c['world'] == 1 + len(c['server_nodes']), "World size mismatch"
     assert c['ctx_size'] >= 0 and c['n_predict'] >= 0
 
+    # Read prompt from file
+    prompt = read_prompt_from_file(args.prompt_path)
+
     print("Master Node Command:")
     print("-"*60)
-    print(generate_master_nodes_cmd(c, args.prompt, args.multi_splits))
+    print(generate_master_nodes_cmd(c, prompt, args.multi_splits))
     print("-"*60)
 
-    for i, cmd in enumerate(generate_server_nodes_cmds(c, args.prompt, args.multi_splits)):
+    for i, cmd in enumerate(generate_server_nodes_cmds(c, prompt, args.multi_splits)):
         print(f"Server {i} Node Command:")
         print(cmd)
         print("-"*60)
 
 if __name__ == "__main__":
     p = ArgumentParser()
-    p.add_argument("--prompt", required=True)
+    p.add_argument("--prompt-path", required=True, help="Path to .txt file containing the prompt")
     p.add_argument("--config-path", required=True)
     p.add_argument("--multi-splits", action="store_true")
     main(p.parse_args())
