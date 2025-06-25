@@ -4,16 +4,6 @@ import tiktoken
 
 from pathlib import Path
 
-URL = "http://127.0.0.1:8080/v1/chat/completions"
-HEADERS = {"Content-Type": "application/json"}
-PAYLOAD = {
-    "model": "Deepseek-R1-Distill-Llama-8B",
-    "messages": [{"role": "user", "content": "Explain what is edge AI in detail?"}],
-    "max_tokens": 1000,
-    "temperature": 0.7,
-    "stream": True,
-}
-
 DEFAULT_TOKENIZER = "o200k_base"
 
 enc = tiktoken.get_encoding(DEFAULT_TOKENIZER)
@@ -76,7 +66,7 @@ async def run_single(client: httpx.AsyncClient, idx: int, results: list[dict],
 
 # ---------- main orchestration ----------
 async def benchmark(concurrency_levels: list[int], url: str,
-                    headers: dict, payload: dict):
+                    headers: dict, payload: dict, csv_output_path: str = None):
     out_rows = []
 
     async with httpx.AsyncClient(http2=False) as client:
@@ -113,13 +103,14 @@ async def benchmark(concurrency_levels: list[int], url: str,
                 "wall": burst_end - burst_start
             })
 
-    # CSV export
-    csv_path = Path("benchmark_results.csv")
-    with csv_path.open("w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=out_rows[0].keys())
-        writer.writeheader()
-        writer.writerows(out_rows)
-    print(f"\nDetailed results written to {csv_path.resolve()}")
+    # CSV export (optional)
+    if csv_output_path:
+        csv_path = Path(csv_output_path)
+        with csv_path.open("w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=out_rows[0].keys())
+            writer.writeheader()
+            writer.writerows(out_rows)
+        print(f"\nDetailed results written to {csv_path.resolve()}")
 
 
 if __name__ == "__main__":
@@ -159,6 +150,10 @@ if __name__ == "__main__":
         default=1000,
         help="Max tokens per request (default: 1000)"
     )
+    p.add_argument(
+        "--csv-output", dest="csv_output", type=str,
+        help="Path to save CSV results (optional, skips CSV if not provided)"
+    )
     args = p.parse_args()
 
     # Build URL, headers, and payload from args
@@ -176,5 +171,6 @@ if __name__ == "__main__":
         args.concurrency_levels,
         full_url,
         headers,
-        payload
+        payload,
+        args.csv_output
     ))
