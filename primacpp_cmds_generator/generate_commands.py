@@ -32,6 +32,8 @@ def build_master_cmd(
         args = ["./llama-server"]
         args += ["--host", str(server_host)]
         args += ["--port", str(server_port)]
+        args += ["-b", str(ctx_size)]    # Physical batch size: logical batch size this service can hold
+        args += ["-ub", str(ctx_size)]   # Micro-batch size: actual activation batch size for processing
         if number_process:
             args += ["-np", str(number_process)]
     else:
