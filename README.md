@@ -1,86 +1,162 @@
 # prima.cpp_benchmark_utils
 
-A collection of tools for benchmarking multi-node prima.cpp ([DandinPower's fork](https://github.com/DandinPower/prima.cpp)), including:
+A comprehensive collection of tools for benchmarking and configuring multi-node prima.cpp ([DandinPower's fork](https://github.com/DandinPower/prima.cpp)) deployments, including:
 
-1. prima.cpp commands generator
-2. delay.sh
-3. gguf-split
-4. gguf metadata converter
-
+1. **prima.cpp Commands Generator** - Automated command generation for CLI and server modes
+2. **Server Benchmark Tool** - Performance testing for prima.cpp servers
+3. **GGUF Utilities** - Model file splitting and metadata conversion
+4. **Network Simulation** - Latency simulation for distributed testing
 
 ## prima.cpp Commands Generator
 
-This utility automates the construction of `llama-cli` commands tailored for multi-node inference with `prima.cpp`. It reads a JSON configuration file describing your cluster topology and outputs the exact shell commands for each node.
+This utility automates the construction of both `llama-cli` and `llama-server` commands for multi-node inference with prima.cpp. It reads a JSON configuration file describing your cluster topology and outputs ready-to-run shell commands for each node.
 
 ### Features
 
-* Generates commands for a master node and any number of server nodes
-* Supports both single-split and multi-split GGUF models
-* Validates key configuration fields to catch common errors early
-* Produces ready-to-run `llama-cli` invocations with all required flags
+* **Dual Mode Support**: Generates both CLI and server mode commands
+* **Multi-Node Orchestration**: Supports master node + any number of server nodes
+* **GGUF Optimization**: Single-split and multi-split model support
+* **Configuration Validation**: Catches common setup errors early
+* **Production Ready**: Outputs complete commands with all required flags
 
 ### Prerequisites
 
-* [prima.cpp](https://github.com/DandinPower/prima.cpp) that forked by DandinPower (adding public port configuration and multi splits optimization) 
+* [prima.cpp](https://github.com/DandinPower/prima.cpp) - DandinPower's fork with public port configuration and multi-split optimization
+* Python 3.7+ for the command generator
 
-### Configuration File
+### Usage Modes
 
-Create a JSON file (e.g. `example_config.json`) with the following structure:
+#### CLI Mode (One-time Text Generation)
+
+Generates `llama-cli` commands for direct text generation:
+
+```bash
+cd primacpp_cmds_generator
+python generate_commands.py --prompt-path prompt.txt --config-path cli_example.json [--multi-splits]
+```
+
+#### Server Mode (API Service)
+
+Generates `llama-server` commands for HTTP API service:
+
+```bash
+cd primacpp_cmds_generator
+python generate_commands.py --config-path server_example.json --server-mode [--multi-splits]
+```
+
+### Configuration Files
+
+#### CLI Mode Configuration
+
+For `llama-cli` text generation, create a config file like `cli_example.json`:
 
 ```json
 {
-    "gguf_file": "download/Llama-3.2-1B-Instruct-Q4_K_M-00001-of-00003.gguf",
-    "world": 3,
+    "gguf_file": "/datadrive/gguf/DeepSeek-R1-Distill-Llama-70B/DeepSeek-R1-Distill-Llama-70B-Q4_K_M.gguf",
+    "world": 4,
     "ctx_size": 4096,
     "n_predict": 1024,
     "master_node": {
-        "layer_window_size": 4,
+        "layer_window_size": 16,
         "loopback_ip": "127.0.0.1",
         "public_ip": "tw-05.access.glows.ai",
         "data_port": 9000,
         "signal_port": 9001,
-        "public_data_port": 25443,
-        "public_signal_port": 25751,
-        "splits": "0,1,2"
+        "public_data_port": 25549,
+        "public_signal_port": 25857
     },
     "server_nodes": [
         {
-            "layer_window_size": 8,
-            "public_ip": "tw-05.access.glows.ai",
-            "data_port": 9000,
-            "signal_port": 9002,
-            "public_data_port": 25142,
-            "public_signal_port": 25450,
-            "splits": "0,1"
-        },
-        {
-            "layer_window_size": 4,
+            "layer_window_size": 16,
             "public_ip": "tw-05.access.glows.ai",
             "data_port": 9000,
             "signal_port": 9001,
-            "public_data_port": 25149,
-            "public_signal_port": 25457,
-            "splits": "1,2"
+            "public_data_port": 25269,
+            "public_signal_port": 25577
+        },
+        {
+            "layer_window_size": 16,
+            "public_ip": "tw-05.access.glows.ai", 
+            "data_port": 9000,
+            "signal_port": 9001,
+            "public_data_port": 25885,
+            "public_signal_port": 26193
+        },
+        {
+            "layer_window_size": 32,
+            "public_ip": "tw-07.access.glows.ai",
+            "data_port": 9000,
+            "signal_port": 9001,
+            "public_data_port": 27005,
+            "public_signal_port": 27389
         }
     ]
 }
 ```
 
-### Usage
+#### Server Mode Configuration
 
-Run the script with your prompt file and path to the config:
+For `llama-server` HTTP API service, add server-specific fields:
 
-```bash
-python generate_commands.py --prompt-path prompt.txt --config-path config.json [--multi-splits]
+```json
+{
+    "gguf_file": "/datadrive/gguf/DeepSeek-R1-Distill-Llama-70B/DeepSeek-R1-Distill-Llama-70B-Q4_K_M.gguf",
+    "world": 4,
+    "ctx_size": 4096,
+    "master_node": {
+        "layer_window_size": 16,
+        "loopback_ip": "127.0.0.1",
+        "public_ip": "tw-05.access.glows.ai",
+        "data_port": 9000,
+        "signal_port": 9001,
+        "public_data_port": 25549,
+        "public_signal_port": 25857,
+        "server_host": "127.0.0.1",
+        "server_port": 8080,
+        "number_process": 4
+    },
+    "server_nodes": [
+        // ... same as CLI mode
+    ]
+}
 ```
 
-* `--prompt-path`: Path to a `.txt` file containing the text generation prompt.
-* `--config-path`: Path to your JSON configuration file.
-* `--multi-splits`: Include this flag to pass `--splits` to `llama-cli`.
+### Configuration Fields
 
-#### Prompt File Format
+#### Common Fields
+- `gguf_file`: Path to your GGUF model file
+- `world`: Total number of nodes (master + servers)
+- `ctx_size`: Context size for the model
 
-Create a `.txt` file containing your prompt. The script will read all lines and join them into a single line for the command generation. For example:
+#### CLI Mode Specific
+- `n_predict`: Number of tokens to generate
+- Requires `--prompt-path` argument
+
+#### Server Mode Specific  
+- `server_host`: Host to bind the HTTP server (e.g., "127.0.0.1")
+- `server_port`: Port for the HTTP API (e.g., 8080)
+- `number_process`: Optional number of processes for the server
+
+#### Node Configuration
+Each node requires:
+- `layer_window_size`: Number of layers this node handles
+- `public_ip`: External IP address for inter-node communication
+- `data_port`/`signal_port`: Internal communication ports
+- `public_data_port`/`public_signal_port`: External ports for NAT/firewall traversal
+- `splits`: (Optional) Comma-separated split indices for multi-split models
+
+### Command Line Arguments
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `--config-path` | Yes | Path to JSON configuration file |
+| `--prompt-path` | CLI mode only | Path to `.txt` file containing the prompt |
+| `--server-mode` | No | Generate `llama-server` commands instead of `llama-cli` |
+| `--multi-splits` | No | Enable multi-split GGUF support |
+
+### Prompt File Format (CLI Mode Only)
+
+For CLI mode, create a `.txt` file containing your prompt. Multi-line prompts are automatically joined:
 
 **prompt.txt:**
 ```
@@ -90,32 +166,26 @@ Please explain step by step.
 <｜Assistant｜>
 ```
 
-This will be converted to: `<｜User｜> What is 1+1? Please explain step by step. <｜Assistant｜>`
+Converted to: `<｜User｜> What is 1+1? Please explain step by step. <｜Assistant｜>`
 
-### Output
+### Output Format
 
-The script prints:
+The generator outputs ready-to-run commands:
 
-* A `Master Node Command: ==========` section
-* A `Server N Node Command:` section for each server node
-
-You can directly copy and paste these lines into your shell on the respective machines.
-
-### Example
-
-```bash
-$ python generate_commands.py --prompt-path prompt.txt --config-path config.json --multi-splits
+```
 Master Node Command:
 ------------------------------------------------------------
-./llama-cli --splits 0,1,2 -m download/Llama-3.2-1B-Instruct-Q4_K_M-00001-of-00003.gguf -c 4096 -n 1024 -p "<｜User｜>What is 1+1?<｜Assistant｜>" --world 3 --rank 0 --prefetch -lw "4,8,4" -ngl 4 --master 127.0.0.1 --data_port 9000 --signal_port 9001 --next tw-05.access.glows.ai --master_data_port 25443 --next_node_data_port 25142 --next_node_signal_port 25450
+[Complete command for master node]
 ------------------------------------------------------------
 Server 0 Node Command:
-./llama-cli --splits 0,1 -m download/Llama-3.2-1B-Instruct-Q4_K_M-00001-of-00003.gguf --world 3 --rank 1 --prefetch -ngl 8 --master tw-05.access.glows.ai --data_port 9000 --signal_port 9002 --next tw-05.access.glows.ai --master_data_port 25443 --next_node_data_port 25149 --next_node_signal_port 25457
+[Complete command for server node 0]
 ------------------------------------------------------------
 Server 1 Node Command:
-./llama-cli --splits 1,2 -m download/Llama-3.2-1B-Instruct-Q4_K_M-00001-of-00003.gguf --world 3 --rank 2 --prefetch -ngl 4 --master tw-05.access.glows.ai --data_port 9000 --signal_port 9001 --next tw-05.access.glows.ai --master_data_port 25443 --next_node_data_port 25443 --next_node_signal_port 25751
+[Complete command for server node 1]
 ------------------------------------------------------------
 ```
+
+Copy and paste these commands directly into your shell on the respective machines.
 
 ---
 
@@ -235,7 +305,8 @@ python benchmark_prima.py \
   --endpoint /v1/chat/completions \
   --model "Deepseek-R1-Distill-Llama-8B" \
   --prompt "Explain what is edge AI in detail?" \
-  --max-tokens 1000
+  --max-tokens 1000 \
+  --csv-output benchmark_results.csv
 ```
 
 #### Arguments
@@ -249,11 +320,12 @@ python benchmark_prima.py \
 | `--model`                  | Model name (default: `Deepseek-R1-Distill-Llama-8B`)        |
 | `--prompt`                 | Prompt text (default: `Explain what is edge AI in detail?`) |
 | `--max-tokens`             | Max tokens per request (default: `1000`)                    |
+| `--csv-output`             | Path to save CSV results (optional, skips CSV if not provided) |
 
 ### Output
 
 * **Console**: Per-request metrics and system throughput for each concurrency level
-* **CSV**: `benchmark_results.csv` with detailed columns:
+* **CSV**: Optional detailed results file (only created if `--csv-output` is specified) with columns:
 
   * `concurrency`, `id`, `ttft`, `tpot`, `tks`, `tokens`, `wall`
 
@@ -268,7 +340,7 @@ idx  ttft(s)  tpot(s)  req_tks  tokens
   3    0.155    0.011     93.2    932
 System throughput: 374.5 tk/s
 
-Detailed results written to /path/to/benchmark_results.csv
+Detailed results written to /path/to/benchmark_results.csv  # Only if --csv-output is specified
 ```
 
 # License
