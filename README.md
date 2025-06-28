@@ -22,7 +22,6 @@ This utility automates the construction of both `llama-cli` and `llama-server` c
 ### Prerequisites
 
 * [prima.cpp](https://github.com/DandinPower/prima.cpp) - DandinPower's fork with public port configuration and multi-split optimization
-* Python 3.7+ for the command generator
 
 ### Usage Modes
 
@@ -32,7 +31,7 @@ Generates `llama-cli` commands for direct text generation:
 
 ```bash
 cd primacpp_cmds_generator
-python generate_commands.py --prompt-path prompt.txt --config-path cli_example.json [--multi-splits]
+python generate_commands.py -c cli_example.json -p prompt.txt
 ```
 
 #### Server Mode (API Service)
@@ -41,7 +40,7 @@ Generates `llama-server` commands for HTTP API service:
 
 ```bash
 cd primacpp_cmds_generator
-python generate_commands.py --config-path server_example.json --server-mode [--multi-splits]
+python generate_commands.py -c server_example.json
 ```
 
 ### Configuration Files
@@ -52,43 +51,47 @@ For `llama-cli` text generation, create a config file like `cli_example.json`:
 
 ```json
 {
-    "gguf_file": "/datadrive/gguf/DeepSeek-R1-Distill-Llama-70B/DeepSeek-R1-Distill-Llama-70B-Q4_K_M.gguf",
-    "world": 4,
+    "mode": "cli",
+    "gguf_file": "/datadrive/gguf/Qwen2.5/qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf",
     "ctx_size": 4096,
     "n_predict": 1024,
     "master_node": {
-        "layer_window_size": 16,
+        "layer_window_size": 7,
         "loopback_ip": "127.0.0.1",
         "public_ip": "tw-05.access.glows.ai",
         "data_port": 9000,
         "signal_port": 9001,
-        "public_data_port": 25549,
-        "public_signal_port": 25857
+        "public_data_port": 26554,
+        "public_signal_port": 26862,
+        "additional_flags": "-fa"
     },
     "server_nodes": [
         {
-            "layer_window_size": 16,
+            "layer_window_size": 7,
             "public_ip": "tw-05.access.glows.ai",
             "data_port": 9000,
             "signal_port": 9001,
-            "public_data_port": 25269,
-            "public_signal_port": 25577
+            "public_data_port": 25329,
+            "public_signal_port": 25021,
+            "additional_flags": "-fa"
         },
         {
-            "layer_window_size": 16,
+            "layer_window_size": 7,
             "public_ip": "tw-05.access.glows.ai", 
             "data_port": 9000,
             "signal_port": 9001,
-            "public_data_port": 25885,
-            "public_signal_port": 26193
+            "public_data_port": 25945,
+            "public_signal_port": 23985,
+            "additional_flags": "-fa"
         },
         {
-            "layer_window_size": 32,
+            "layer_window_size": 7,
             "public_ip": "tw-07.access.glows.ai",
             "data_port": 9000,
             "signal_port": 9001,
-            "public_data_port": 27005,
-            "public_signal_port": 27389
+            "public_data_port": 24369,
+            "public_signal_port": 27389,
+            "additional_flags": "-fa"
         }
     ]
 }
@@ -100,23 +103,33 @@ For `llama-server` HTTP API service, add server-specific fields:
 
 ```json
 {
-    "gguf_file": "/datadrive/gguf/DeepSeek-R1-Distill-Llama-70B/DeepSeek-R1-Distill-Llama-70B-Q4_K_M.gguf",
-    "world": 4,
-    "ctx_size": 4096,
+    "mode": "server",
+    "gguf_file": "/datadrive/gguf/Qwen2.5/qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf",
+    "ctx_size": 16384,
     "master_node": {
-        "layer_window_size": 16,
+        "layer_window_size": 7,
         "loopback_ip": "127.0.0.1",
         "public_ip": "tw-05.access.glows.ai",
         "data_port": 9000,
         "signal_port": 9001,
-        "public_data_port": 25549,
-        "public_signal_port": 25857,
-        "server_host": "127.0.0.1",
+        "public_data_port": 26554,
+        "public_signal_port": 26862,
+        "server_host": "0.0.0.0",
         "server_port": 8080,
-        "number_process": 4
+        "number_process": 4,
+        "additional_flags": "--alias qwen2.5-7b-instruct -fa -cb"
     },
     "server_nodes": [
-        // ... same as CLI mode
+        {
+            "layer_window_size": 7,
+            "public_ip": "tw-05.access.glows.ai",
+            "data_port": 9000,
+            "signal_port": 9001,
+            "public_data_port": 25329,
+            "public_signal_port": 25021,
+            "additional_flags": "-fa"
+        }
+        // ... additional server nodes
     ]
 }
 ```
@@ -124,18 +137,18 @@ For `llama-server` HTTP API service, add server-specific fields:
 ### Configuration Fields
 
 #### Common Fields
+- `mode`: Operation mode ("cli" or "server")
 - `gguf_file`: Path to your GGUF model file
-- `world`: Total number of nodes (master + servers)
 - `ctx_size`: Context size for the model
 
 #### CLI Mode Specific
 - `n_predict`: Number of tokens to generate
-- Requires `--prompt-path` argument
+- Requires `-p/--prompt-path` argument
 
 #### Server Mode Specific  
-- `server_host`: Host to bind the HTTP server (e.g., "127.0.0.1")
+- `server_host`: Host to bind the HTTP server (e.g., "0.0.0.0", "127.0.0.1")
 - `server_port`: Port for the HTTP API (e.g., 8080)
-- `number_process`: Optional number of processes for the server
+- `number_process`: Number of processes for the server
 
 #### Node Configuration
 Each node requires:
@@ -143,16 +156,15 @@ Each node requires:
 - `public_ip`: External IP address for inter-node communication
 - `data_port`/`signal_port`: Internal communication ports
 - `public_data_port`/`public_signal_port`: External ports for NAT/firewall traversal
+- `additional_flags`: (Optional) Additional command-line flags to pass to llama-cli/llama-server
 - `splits`: (Optional) Comma-separated split indices for multi-split models
 
 ### Command Line Arguments
 
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `--config-path` | Yes | Path to JSON configuration file |
-| `--prompt-path` | CLI mode only | Path to `.txt` file containing the prompt |
-| `--server-mode` | No | Generate `llama-server` commands instead of `llama-cli` |
-| `--multi-splits` | No | Enable multi-split GGUF support |
+| `-c, --config-path` | Yes | Path to JSON configuration file |
+| `-p, --prompt-path` | CLI mode only | Path to `.txt` file containing the prompt |
 
 ### Prompt File Format (CLI Mode Only)
 

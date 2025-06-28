@@ -1,41 +1,45 @@
 {
-    "gguf_file": "/datadrive/gguf/DeepSeek-R1-Distill-Llama-70B/DeepSeek-R1-Distill-Llama-70B-Q4_K_M.gguf",
-    "world": 4,
+    "mode": "cli",
+    "gguf_file": "/datadrive/gguf/Qwen2.5/qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf",
     "ctx_size": 4096,
     "n_predict": 1024,
     "master_node": {
-        "layer_window_size": 16,
+        "layer_window_size": 7,
         "loopback_ip": "127.0.0.1",
         "public_ip": "tw-05.access.glows.ai",
         "data_port": 9000,
         "signal_port": 9001,
-        "public_data_port": 25549,
-        "public_signal_port": 25857
+        "public_data_port": 26554,
+        "public_signal_port": 26862,
+        "additional_flags": "-fa"
     },
     "server_nodes": [
         {
-            "layer_window_size": 16,
+            "layer_window_size": 7,
             "public_ip": "tw-05.access.glows.ai",
             "data_port": 9000,
             "signal_port": 9001,
-            "public_data_port": 25269,
-            "public_signal_port": 25577
+            "public_data_port": 25329,
+            "public_signal_port": 25021,
+            "additional_flags": "-fa"
         },
         {
-            "layer_window_size": 16,
+            "layer_window_size": 7,
             "public_ip": "tw-05.access.glows.ai",
             "data_port": 9000,
             "signal_port": 9001,
-            "public_data_port": 25885,
-            "public_signal_port": 26193
+            "public_data_port": 25945,
+            "public_signal_port": 23985,
+            "additional_flags": "-fa"
         },
         {
-            "layer_window_size": 32,
+            "layer_window_size": 7,
             "public_ip": "tw-07.access.glows.ai",
             "data_port": 9000,
             "signal_port": 9001,
-            "public_data_port": 27005,
-            "public_signal_port": 27389
+            "public_data_port": 24369,
+            "public_signal_port": 27389,
+            "additional_flags": "-fa"
         }
     ]
 }
