@@ -98,7 +98,7 @@ async def run_single(client: httpx.AsyncClient, idx: int, results: list[dict],
     span = (last_tok_time - first_tok_time) if (token_count >
                                                 1 and first_tok_time) else 0
     tpot = (span / (token_count - 1)) if token_count > 1 else None
-    tks = (token_count / (end - start)) if token_count else 0
+    tks = (token_count / span) if token_count else 0
     meta.update(ttft=ttft, tpot=tpot, tks=tks, tokens=token_count,
                 wall=end - start)
     results.append(meta)
@@ -129,7 +129,6 @@ async def benchmark(concurrency_levels: list[int], url: str,
             burst_end = time.perf_counter()
 
             sys_tkn = sum(r["tokens"] for r in burst_results)
-            sys_tps = sys_tkn / (burst_end - burst_start) if sys_tkn else 0
             valid_results = [r for r in burst_results if r["ttft"] is not None]
             if valid_results:
                 avg_ttft = sum(r["ttft"]
@@ -140,8 +139,10 @@ async def benchmark(concurrency_levels: list[int], url: str,
                                   for r in valid_results) / len(valid_results)
                 avg_tokens = sum(r["tokens"]
                                  for r in valid_results) / len(valid_results)
+                sys_tps = sum(r["tks"] for r in valid_results)
             else:
                 avg_ttft = avg_tpot = avg_req_tks = avg_tokens = 0
+                sys_tps = 0
 
             print("idx  ttft(s)  tpot(s)  req_tks  tokens")
             for r in sorted(burst_results, key=lambda x: x["id"]):

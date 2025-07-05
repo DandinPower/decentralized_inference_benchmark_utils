@@ -1,13 +1,13 @@
 #!/bin/bash
 
-CONCURRENCY="1 2 4"
-HOST="tw-05.access.glows.ai"
-PORT="26721"
+CONCURRENCY="4"
+HOST="tw-06.access.glows.ai"
+PORT="25503"
 ENDPOINT="/v1/chat/completions"
-MODEL="qwen2.5-7b-instruct"
+MODEL="qwen2.5-72b-instruct"
 PROMPT_FILE="short_prompt.txt"
 MAX_TOKENS="100"
-CSV_OUTPUT="qwen2.5-7b_gpus4_short.csv"
+CSV_OUTPUT="profiling.csv"
 
 python benchmark.py \
   -c $CONCURRENCY \
@@ -23,7 +23,7 @@ echo "Benchmark finished. Results saved to $CSV_OUTPUT"
 
 PROMPT_FILE="long_prompt.txt"
 MAX_TOKENS="100"
-CSV_OUTPUT="qwen2.5-7b_gpus4_short.csv"
+CSV_OUTPUT="qwen2.5-72b_gpus2_long.csv"
 
 python benchmark.py \
   -c $CONCURRENCY \
