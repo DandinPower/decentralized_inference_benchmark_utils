@@ -239,7 +239,7 @@ if __name__ == "__main__":
         "model": args.model,
         "messages": [{"role": "user", "content": prompt}],
         "max_tokens": args.max_tokens,
-        "temperature": 0.7,
+        "temperature": 0,
         "stream": True,
     }
 

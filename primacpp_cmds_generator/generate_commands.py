@@ -40,7 +40,8 @@ def generate_master_nodes_cmd(configs: dict, prompt: str) -> str:
         args += ["--host", master_node.get("server_host"),
                  "--port", master_node.get("server_port"),
                  "-c", configs.get("ctx_size"),
-                 "-b", configs.get("ctx_size"),
+                 "-b", configs.get("n_batch"),
+                 "-ub", configs.get("n_ubatch"),
                  "-np", master_node.get("number_process")]
         args += ["--world", world_size,
                  "--rank", 0,
@@ -164,7 +165,8 @@ def main(args: Namespace):
     assert mode == "server" or mode == "cli", f"Invalid mode: '{mode}'. Supported modes are 'server' or 'cli'."
 
     validate_fields(cfg_dict, "gguf_file", expected_type=str)
-    validate_fields(cfg_dict, "ctx_size", expected_type=int)
+    validate_fields(cfg_dict, "ctx_size", "n_batch",
+                    "n_ubatch", expected_type=int)
 
     if mode == "cli":
         validate_fields(cfg_dict, "n_predict", expected_type=int)
