@@ -140,6 +140,8 @@ For `llama-server` HTTP API service, add server-specific fields:
 - `mode`: Operation mode ("cli" or "server")
 - `gguf_file`: Path to your GGUF model file
 - `ctx_size`: Context size for the model
+- `n_batch`: The total batch size the model processes at once.
+- `n_ubatch`: The micro-batch size, which may be used for pipelined execution.
 
 #### CLI Mode Specific
 - `n_predict`: Number of tokens to generate

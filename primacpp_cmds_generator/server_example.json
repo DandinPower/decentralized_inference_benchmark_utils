@@ -2,6 +2,8 @@
     "mode": "server",
     "gguf_file": "/datadrive/gguf/Qwen2.5/qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf",
     "ctx_size": 16384,
+    "n_batch": 16394,
+    "n_ubatch": 512,
     "master_node": {
         "layer_window_size": 7,
         "loopback_ip": "127.0.0.1",
