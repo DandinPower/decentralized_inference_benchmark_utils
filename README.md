@@ -12,7 +12,7 @@ This collection provides the following utilities:
 * **[Manual RTT Delay](./manual_rtt_delay/README.md)**: A shell script to simulate network latency for testing distributed setups.
 * **[Prima.cpp Commands Generator](./primacpp_cmds_generator/README.md)**: A Python script to automate the generation of `llama-cli` and `llama-server` commands.
 * **[Prima.cpp Server Benchmark](./primacpp_server_benchmark/README.md)**: A tool for benchmarking the performance of a `prima.cpp` server.
-* **[Client Inference Code for Petals Swarm](./petals_client_for_benchmark/README.md)**: A project collect the scripts can run a distributed model inference on exists petals swarm.
+* **[Client Inference Code for Petals Swarm](./petals_client_for_benchmark/README.md)**: A Python client to run inference on a Petals swarm and benchmark key metrics like Time to First Token (TTFT) and throughput.
 
 ## License
 
