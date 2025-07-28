@@ -6,6 +6,7 @@ This repository contains a comprehensive suite of tools designed for benchmarkin
 
 This collection provides the following utilities:
 
+* **[Activation Visualizer](./activation_visualizer/README.md)**: A tool to visualize neural network activation tensors as 3D heatmaps from binary tensor files.
 * **[Gantt Log Visualizer](./gantt_log_visualizer/README.md)**: A tool to visualize multi-rank logs as an interactive Gantt chart.
 * **[GGUF Split](./gguf-split-b5734/README.md)**: A utility to split GGUF model files into smaller, manageable shards.
 * **[GGUF Metadata Converter](./gguf_metadata_converter/README.md)**: A script to strip tensor data from GGUF files, leaving only the metadata.
