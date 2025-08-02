@@ -60,12 +60,34 @@ def generate_master_nodes_cmd(configs: dict, prompt: str) -> str:
             args += ["--splits", master_node.get("splits")]
         if master_node.get("additional_flags") is not None:
             args += [master_node.get("additional_flags")]
-    else:
+    elif mode == "cli":
         args = ["./llama-cli"]
         args += ["-m", configs.get("gguf_file")]
         args += ["-c", configs.get("ctx_size"),
                  "-n", configs.get("n_predict"),
                  "-p", f"\"{prompt}\""]
+        args += ["--world", world_size,
+                 "--rank", 0,
+                 "-lw", layer_windows,
+                 "-ngl", master_node.get("layer_window_size"),
+                 "--data_port", master_node.get("data_port"),
+                 "--signal_port", master_node.get("signal_port"),
+                 "--master", master_node.get("loopback_ip"),
+                 "--master_data_port", master_node.get("data_port"),
+                 "--next", next_node.get("public_ip"),
+                 "--next_node_data_port", next_node.get("public_data_port"),
+                 "--next_node_signal_port", next_node.get(
+                     "public_signal_port"),
+                 ]
+
+        if master_node.get("splits") is not None:
+            args += ["--splits", master_node.get("splits")]
+        if master_node.get("additional_flags") is not None:
+            args += [master_node.get("additional_flags")]
+    else:
+        args = ["./llama-perplexity"]
+        args += ["-m", configs.get("gguf_file")]
+        args += ["-f", configs.get("text_file")]
         args += ["--world", world_size,
                  "--rank", 0,
                  "-lw", layer_windows,
@@ -162,18 +184,20 @@ def main(args: Namespace):
     cfg_dict = json.loads(cfg.read_text(encoding="utf-8"))
 
     mode = cfg_dict.get("mode")
-    assert mode == "server" or mode == "cli", f"Invalid mode: '{mode}'. Supported modes are 'server' or 'cli'."
+    assert mode == "server" or mode == "cli" or mode == "perplexity", f"Invalid mode: '{mode}'. Supported modes are 'server' or 'cli'."
 
     validate_fields(cfg_dict, "gguf_file", expected_type=str)
-    validate_fields(cfg_dict, "ctx_size", "n_batch",
-                    "n_ubatch", expected_type=int)
-
+    if mode == "cli" or mode == "server":
+        validate_fields(cfg_dict, "ctx_size", "n_batch",
+                        "n_ubatch", expected_type=int)
+    if mode == "perplexity":
+        validate_fields(cfg_dict, "text_file", expected_type=str)
     if mode == "cli":
         validate_fields(cfg_dict, "n_predict", expected_type=int)
         prompt = read_prompt_from_file(args.prompt_path)
     else:
         prompt = None
-
+    
     print("Master Node Command:")
     print("-"*60)
     print(generate_master_nodes_cmd(cfg_dict, prompt))

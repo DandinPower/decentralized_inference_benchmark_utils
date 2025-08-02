@@ -1,10 +1,10 @@
 # prima.cpp Commands Generator
 
-This utility automates the construction of both `llama-cli` and `llama-server` commands for multi-node inference with prima.cpp. It reads a JSON configuration file describing your cluster topology and outputs ready-to-run shell commands for each node.
+This utility automates the construction of both `llama-cli`, `llama-server` and `llama-perplexity` commands for multi-node inference with prima.cpp. It reads a JSON configuration file describing your cluster topology and outputs ready-to-run shell commands for each node.
 
 ### Features
 
-* **Dual Mode Support**: Generates both CLI and server mode commands
+* **Multi Mode Support**: Generates both CLI, server and perplexity mode commands
 * **Multi-Node Orchestration**: Supports master node + any number of server nodes
 * **GGUF Optimization**: Single-split and multi-split model support
 * **Configuration Validation**: Catches common setup errors early
@@ -32,6 +32,15 @@ Generates `llama-server` commands for HTTP API service:
 ```bash
 cd primacpp_cmds_generator
 python generate_commands.py -c server_example.json
+```
+
+#### Perplexity Mode (Evaluation)
+
+Generates `llama-perplexity` commands for perplexity evaluation:
+
+```bash
+cd primacpp_cmds_generator
+python generate_commands.py -c perplexity_example.json
 ```
 
 ### Configuration Files
@@ -129,11 +138,47 @@ For `llama-server` HTTP API service, add server-specific fields:
 }
 ```
 
+#### Perplexity Mode Configuration
+
+For `llama-perplexity` text generation, create a config file like `perplexity_example.json`:
+
+```json
+{
+    "mode": "perplexity",
+    "gguf_file": "gguf/qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf",
+    "text_file": "wikitext-2-raw/wiki.test.raw",
+    "master_node": {
+        "layer_window_size": 14,
+        "loopback_ip": "127.0.0.1",
+        "public_ip": "192.168.4.9",
+        "data_port": 9000,
+        "signal_port": 9001,
+        "public_data_port": 9000,
+        "public_signal_port": 9001,
+        "additional_flags": "-fa"
+    },
+    "server_nodes": [
+        {
+            "layer_window_size": 14,
+            "public_ip": "192.168.4.10",
+            "data_port": 9000,
+            "signal_port": 9001,
+            "public_data_port": 9000,
+            "public_signal_port": 9001,
+            "additional_flags": "-fa"
+        }
+    ]
+}
+```
+
 ### Configuration Fields
 
 #### Common Fields
-- `mode`: Operation mode ("cli" or "server")
+- `mode`: Operation mode ("cli", "server" and "perplexity")
 - `gguf_file`: Path to your GGUF model file
+
+#### For CLI and Server
+
 - `ctx_size`: Context size for the model
 - `n_batch`: The total batch size the model processes at once.
 - `n_ubatch`: The micro-batch size, which may be used for pipelined execution.
@@ -146,6 +191,9 @@ For `llama-server` HTTP API service, add server-specific fields:
 - `server_host`: Host to bind the HTTP server (e.g., "0.0.0.0", "127.0.0.1")
 - `server_port`: Port for the HTTP API (e.g., 8080)
 - `number_process`: Number of processes for the server
+
+#### Perplexity Mode Specific
+- `text_file`: Path to your evaluated text file
 
 #### Node Configuration
 Each node requires:

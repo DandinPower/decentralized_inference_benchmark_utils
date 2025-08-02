@@ -1,0 +1,26 @@
+{
+    "mode": "perplexity",
+    "gguf_file": "gguf/qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf",
+    "text_file": "wikitext-2-raw/wiki.test.raw",
+    "master_node": {
+        "layer_window_size": 14,
+        "loopback_ip": "127.0.0.1",
+        "public_ip": "192.168.4.9",
+        "data_port": 9000,
+        "signal_port": 9001,
+        "public_data_port": 9000,
+        "public_signal_port": 9001,
+        "additional_flags": "-fa"
+    },
+    "server_nodes": [
+        {
+            "layer_window_size": 14,
+            "public_ip": "192.168.4.10",
+            "data_port": 9000,
+            "signal_port": 9001,
+            "public_data_port": 9000,
+            "public_signal_port": 9001,
+            "additional_flags": "-fa"
+        }
+    ]
+}
