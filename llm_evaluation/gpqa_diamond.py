@@ -1,5 +1,6 @@
 import re
 import json
+import random
 import asyncio
 
 from argparse import ArgumentParser, Namespace
@@ -9,7 +10,7 @@ from datasets import load_dataset, Dataset
 from openai import AsyncOpenAI
 from tqdm import tqdm
 
-MMLU_PRO_DATASET = "TIGER-Lab/MMLU-Pro"
+GPQA_DATASET = "Idavidrein/gpqa"
 
 
 def get_client(base_url: str, api_key: str):
@@ -26,7 +27,7 @@ async def call_api(client, model_name: str, prompt: str):
         model=model_name,
         messages=message_text,
         temperature=0,
-        max_tokens=4096,
+        max_tokens=8192,
         top_p=1,
         frequency_penalty=0,
         presence_penalty=0,
@@ -35,31 +36,27 @@ async def call_api(client, model_name: str, prompt: str):
     return result
 
 
-def load_mmlu_pro(dataset_path: str):
+def load_gpqa_diamond(dataset_path: str):
     def extract_questions(hf_dataset: Dataset):
         questions = []
         for each in hf_dataset:
-            options = []
-            for opt in each["options"]:
-                if opt == "N/A":
-                    continue
-                options.append(opt)
-            each["options"] = options
-            questions.append(each)
+            extracted_keys = {"Question", "Correct Answer", "Incorrect Answer 1", "Incorrect Answer 2", "Incorrect Answer 3"}
+            index_2_answer_mapping = {0: "A", 1: "B", 2: "C", 3: "D"}
+            
+            extracted_question = {k: each[k] for k in each.keys() if k in extracted_keys}
+            corrected_answer_index = random.randint(0, 3)
+            options = [extracted_question["Incorrect Answer 1"], extracted_question["Incorrect Answer 2"], extracted_question["Incorrect Answer 3"]]
+            options.insert(corrected_answer_index, extracted_question["Correct Answer"])
+            extracted_question["options"] = options
+            extracted_question["answer"] = index_2_answer_mapping[corrected_answer_index]
+            
+            questions.append(extracted_question)
         return questions
 
-    def categorization(questions: list) -> dict[str, list]:
-        categorized_questions = defaultdict(list)
-        for question in questions:
-            categorized_questions[question["category"]].append(question)
-        return categorized_questions
-
-    dataset = load_dataset(dataset_path)
-    test_dataset, val_dataset = dataset["test"], dataset["validation"]
+    dataset = load_dataset(dataset_path, "gpqa_diamond")
+    test_dataset = dataset["train"]
     test_questions = extract_questions(test_dataset)
-    val_questions = extract_questions(val_dataset)
-    val_categorized_questions = categorization(val_questions)
-    return test_questions, val_categorized_questions
+    return test_questions
 
 
 def extract_answer(text):
@@ -74,35 +71,17 @@ def extract_answer(text):
         return match.group(0)
     return None
 
-
-def format_val_example(question: str, options: list[str], cot_content: str) -> str:
-    if cot_content.startswith("A: "):
-        cot_content = cot_content[3:]
-    example = f"Question: {question}\nOptions: "
-    choice_map = "ABCDEFGHIJ"
-    for i, opt in enumerate(options):
-        example += f"{choice_map[i]}. {opt}\n"
-    example += "Answer: " + cot_content + "\n\n"
-    return example
-
-
 def format_test_examplpe(question: str, options: list[str]) -> str:
     example = f"Question: {question}\nOptions: \n"
-    choice_map = "ABCDEFGHIJ"
+    choice_map = "ABCD"
     for i, opt in enumerate(options):
         example += f"{choice_map[i]}. {opt}\n"
     return example
 
-
-async def single_request(client, model_name, single_question, cot_examples_dict):
-    category = single_question["category"]
-    cot_examples = cot_examples_dict[category]
-    question = single_question["question"]
+async def single_request(client, model_name, single_question):
+    question = single_question["Question"]
     options = single_question["options"]
-    prompt = f'The following are multiple choice questions (with answers) about {category}. Think step by step and then output the answer in the format of "The answer is (X)" at the end.\n\n'
-
-    for each in cot_examples:
-        prompt += format_val_example(each["question"], each["options"], each["cot_content"])
+    prompt = f'The following question is a multiple-choice question. Please explain your solution and output the answer in the format of "The answer is (X)", where X is chosen from one of the options (A, B, C, D).\n\n'
     prompt += format_test_examplpe(question, options)
 
     try:
@@ -138,7 +117,7 @@ async def evaluate(args: Namespace):
             print(f"[{datetime.now()}][WORKER:{worker_id}][TASK:{task_id}]")
             label = test_questions[task_id]["answer"]
             pred, response, prompt = await single_request(
-                client, model_name, test_questions[task_id], val_categorized_questions
+                client, model_name, test_questions[task_id]
             )
             async with update_lock:
                 if response is not None:
@@ -155,7 +134,7 @@ async def evaluate(args: Namespace):
             task_queue.task_done()
         return corr, wrong
 
-    test_questions, val_categorized_questions = load_mmlu_pro(MMLU_PRO_DATASET)
+    test_questions = load_gpqa_diamond(GPQA_DATASET)
 
     n_questions = int(
         len(test_questions) if args.number_of_questions is None else args.number_of_questions
