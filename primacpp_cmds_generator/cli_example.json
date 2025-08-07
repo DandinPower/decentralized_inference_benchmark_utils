@@ -1,46 +1,28 @@
 {
     "mode": "cli",
-    "gguf_file": "/datadrive/gguf/Qwen2.5/qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf",
+    "gguf_file": "gguf/qwen2.5-7b-instruct-q4_k_m-00001-of-00002.gguf",
     "ctx_size": 4096,
     "n_batch": 4096,
     "n_ubatch": 512,
     "n_predict": 1024,
     "master_node": {
-        "layer_window_size": 7,
+        "layer_window_size": 14,
         "loopback_ip": "127.0.0.1",
-        "public_ip": "tw-05.access.glows.ai",
+        "public_ip": "192.168.4.13",
         "data_port": 9000,
         "signal_port": 9001,
-        "public_data_port": 26554,
-        "public_signal_port": 26862,
-        "additional_flags": "-fa"
+        "public_data_port": 9000,
+        "public_signal_port": 9001,
+        "additional_flags": "-fa --keep-out-in-cuda"
     },
     "server_nodes": [
         {
-            "layer_window_size": 7,
-            "public_ip": "tw-05.access.glows.ai",
+            "layer_window_size": 14,
+            "public_ip": "192.168.4.14",
             "data_port": 9000,
             "signal_port": 9001,
-            "public_data_port": 25329,
-            "public_signal_port": 25021,
-            "additional_flags": "-fa"
-        },
-        {
-            "layer_window_size": 7,
-            "public_ip": "tw-05.access.glows.ai",
-            "data_port": 9000,
-            "signal_port": 9001,
-            "public_data_port": 25945,
-            "public_signal_port": 23985,
-            "additional_flags": "-fa"
-        },
-        {
-            "layer_window_size": 7,
-            "public_ip": "tw-07.access.glows.ai",
-            "data_port": 9000,
-            "signal_port": 9001,
-            "public_data_port": 24369,
-            "public_signal_port": 27389,
+            "public_data_port": 9000,
+            "public_signal_port": 9001,
             "additional_flags": "-fa"
         }
     ]

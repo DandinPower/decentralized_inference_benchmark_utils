@@ -5,17 +5,17 @@
     "master_node": {
         "layer_window_size": 14,
         "loopback_ip": "127.0.0.1",
-        "public_ip": "192.168.4.9",
+        "public_ip": "192.168.4.13",
         "data_port": 9000,
         "signal_port": 9001,
         "public_data_port": 9000,
         "public_signal_port": 9001,
-        "additional_flags": "-fa"
+        "additional_flags": "-fa --keep-out-in-cuda"
     },
     "server_nodes": [
         {
             "layer_window_size": 14,
-            "public_ip": "192.168.4.10",
+            "public_ip": "192.168.4.14",
             "data_port": 9000,
             "signal_port": 9001,
             "public_data_port": 9000,
