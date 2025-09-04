@@ -1,16 +1,14 @@
 import re
 import json
-import random
 import asyncio
 
 from argparse import ArgumentParser, Namespace
-from collections import defaultdict
 from datetime import datetime
 from datasets import load_dataset, Dataset
 from openai import AsyncOpenAI
 from tqdm import tqdm
 
-GPQA_DATASET = "Idavidrein/gpqa"
+AIME_2025_DATASET = "yentinglin/aime_2025"
 
 
 def get_client(base_url: str, api_key: str):
@@ -27,7 +25,7 @@ async def call_api(client, model_name: str, prompt: str):
         model=model_name,
         messages=message_text,
         temperature=0,
-        max_tokens=8192,
+        max_tokens=4096,
         top_p=1,
         frequency_penalty=0,
         presence_penalty=0,
@@ -36,53 +34,38 @@ async def call_api(client, model_name: str, prompt: str):
     return result
 
 
-def load_gpqa_diamond(dataset_path: str):
+def load_aime_2025(dataset_path: str):
     def extract_questions(hf_dataset: Dataset):
         questions = []
         for each in hf_dataset:
-            extracted_keys = {"Question", "Correct Answer", "Incorrect Answer 1", "Incorrect Answer 2", "Incorrect Answer 3"}
-            index_2_answer_mapping = {0: "A", 1: "B", 2: "C", 3: "D"}
-            
+            extracted_keys = {"problem", "answer"}
             extracted_question = {k: each[k] for k in each.keys() if k in extracted_keys}
-            corrected_answer_index = random.randint(0, 3)
-            options = [extracted_question["Incorrect Answer 1"], extracted_question["Incorrect Answer 2"], extracted_question["Incorrect Answer 3"]]
-            options.insert(corrected_answer_index, extracted_question["Correct Answer"])
-            extracted_question["options"] = options
-            extracted_question["answer"] = index_2_answer_mapping[corrected_answer_index]
-            
             questions.append(extracted_question)
         return questions
 
-    dataset = load_dataset(dataset_path, "gpqa_diamond")
+    dataset = load_dataset(dataset_path, "default")
     test_dataset = dataset["train"]
     test_questions = extract_questions(test_dataset)
     return test_questions
 
 
-def extract_answer(text):
-    match = re.search(r"answer is \(?([A-J])\)?", text)
+def extract_answer(text: str):
+    # 1) "The answer is (X)" or "The answer is X"
+    match = re.search(r"(?i)\banswer\s+is\b[^+\-\d]*\(?\s*([+\-]?\d+)(?!\.\d)\s*\)?", text)
     if match:
-        return match.group(1)
-    match = re.search(r".*[aA]nswer:\s*([A-J])", text)
+        return int(match.group(1))
+    # 2) "Answer: X"
+    match = re.search(r"(?i)\banswer\s*:\s*\(?\s*([+\-]?\d+)(?!\.\d)\s*\)?", text)
     if match:
-        return match.group(1)
-    match = re.search(r"\b[A-J]\b(?!.*\b[A-J]\b)", text, re.DOTALL)
-    if match:
-        return match.group(0)
-    return None
-
-def format_test_examplpe(question: str, options: list[str]) -> str:
-    example = f"Question: {question}\nOptions: \n"
-    choice_map = "ABCD"
-    for i, opt in enumerate(options):
-        example += f"{choice_map[i]}. {opt}\n"
-    return example
+        return int(match.group(1))
+    # 3) Fallback: last standalone integer in the text
+    nums = re.findall(r"(?<!\d)[+\-]?\d+(?!\d)(?!\.\d)", text, flags=re.DOTALL)
+    return int(nums[-1]) if nums else None
 
 async def single_request(client, model_name, single_question):
-    question = single_question["Question"]
-    options = single_question["options"]
-    prompt = f'The following question is a multiple-choice question. Please explain your solution and output the answer in the format of "The answer is (X)", where X is chosen from one of the options (A, B, C, D).\n\n'
-    prompt += format_test_examplpe(question, options)
+    question = single_question["problem"]
+    prompt = f"The following question is a math question. Please explain your solution and output the answer in the format \"The answer is (X)\" where X is a clean integer, such as \"The answer is -190,\" without any special syntax.\n\nQuestion:\n\n"
+    prompt += question
 
     try:
         response = await call_api(client, model_name, prompt)
@@ -119,6 +102,7 @@ async def evaluate(args: Namespace):
             pred, response, prompt = await single_request(
                 client, model_name, test_questions[task_id]
             )
+            pred = str(pred)
             async with update_lock:
                 if response is not None:
                     test_questions[task_id]["pred"] = pred
@@ -134,7 +118,7 @@ async def evaluate(args: Namespace):
             task_queue.task_done()
         return corr, wrong
 
-    test_questions = load_gpqa_diamond(GPQA_DATASET)
+    test_questions = load_aime_2025(AIME_2025_DATASET)
 
     n_questions = int(
         len(test_questions) if args.number_of_questions is None else args.number_of_questions
@@ -189,7 +173,7 @@ if __name__ == "__main__":
         "--number_of_questions",
         "-n",
         default=None,
-        help="GPQA has over 198 questions by default. You can specify the number you want to evaluate.",
+        help="AIME 2025 has 30 questions by default. You can specify the number you want to evaluate.",
     )
     parser.add_argument(
         "--output_path",

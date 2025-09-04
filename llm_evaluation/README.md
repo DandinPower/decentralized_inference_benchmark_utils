@@ -1,95 +1,89 @@
-# LLM‑Evaluation Suite
+# LLM Evaluation Suite
 
-This repository contains two evaluation scripts that benchmark Large‑Language‑Models (LLMs) against two public multiple‑choice datasets:
+Lightweight scripts to benchmark LLMs on multiple public datasets using a shared async pipeline.
 
-## Script Overview
+## Scripts at a glance
 
-| Script             | Dataset                         | Purpose                                                                 |
-|--------------------|----------------------------------|-------------------------------------------------------------------------|
-| `mmlu_pro.py`      | MMLU‑Pro – 12K+ high‑quality academic questions | Full‑scale evaluation with chain‑of‑thought (CoT) examples from the validation set |
-| `gpqa_diamond.py`  | GPQA‑Diamond – 198 question‑answer pairs        | Quick sanity‑check evaluation |
+| Script            | Dataset                                  | Purpose                                              |
+| ----------------- | ---------------------------------------- | ---------------------------------------------------- |
+| `mmlu_pro.py`     | `TIGER-Lab/MMLU-Pro`                     | Full evaluation with per-category CoT exemplars      |
+| `gpqa_diamond.py` | `Idavidrein/gpqa` (split `gpqa_diamond`) | Quick sanity check on 198 expert-level questions     |
+| `aime_2025.py`    | `yentinglin/aime_2025`                   | AIME 2025 integer answers, strict integer extraction |
 
-Both scripts share the same evaluation pipeline – data loading, prompt construction, asynchronous API calls, answer extraction, and result reporting.
+All three follow the same flow: load data, build prompts, call an OpenAI-compatible chat API asynchronously, extract answers, and write a JSON report.
 
-## Common Parts
+## Common pipeline
 
-| Step                | What It Does                                                                 | Why It Matters                                                     |
-|---------------------|------------------------------------------------------------------------------|---------------------------------------------------------------------|
-| Argument Parsing    | Uses `argparse.ArgumentParser` to accept `<model_name>`, `<base_url>`, `<api_key>`, `<workers>`, `<number_of_questions>`, and `<output_path>` | Provides a consistent CLI for both scripts                         |
-| Async OpenAI Client | `AsyncOpenAI(base_url=…, api_key=…)`                                         | Enables non‑blocking, concurrent requests                           |
-| Prompt Construction | Builds a prompt with the question, options, and (for MMLU‑Pro) CoT examples | Controls how the model is presented with the task                   |
-| API Call            | `client.chat.completions.create(..., temperature=0, max_tokens=…)`           | Sends the prompt and receives a free‑text response                  |
-| Answer Extraction   | Regex search for patterns like `answer is (A)` or `Answer: B`                | Normalizes model output into a single letter                        |
-| Result Aggregation  | Logs prediction, outputs, prompt, and result; computes accuracy              | Generates a comprehensive JSON report                               |
-| Concurrent Workers  | `asyncio.Queue` + `asyncio.Task` per worker                                 | Speeds up evaluation with parallel requests                         |
+| Step              | Details                                                                                                      |
+| ----------------- | ------------------------------------------------------------------------------------------------------------ |
+| Argument parsing  | `-m/--model_name`, `--base_url`, `--api_key`, `-w/--workers`, `-n/--number_of_questions`, `-o/--output_path` |
+| Async client      | `openai.AsyncOpenAI(base_url=..., api_key=...)`                                                              |
+| Prompting         | Question plus options. `mmlu_pro.py` prepends CoT exemplars from the validation set by category              |
+| API call          | `client.chat.completions.create(..., temperature=0)`                                                         |
+| Answer extraction | MMLU/GPQA use final letter A–J. AIME 2025 extracts a clean integer only                                      |
+| Concurrency       | Work queue with N workers                                                                                    |
+| Reporting         | Per-question logs and accuracy in a single JSON file                                                         |
 
-## Differences Between `mmlu_pro.py` and `gpqa_diamond.py`
+### Dataset specifics
 
-| Feature              | `mmlu_pro.py`                                                                                         | `gpqa_diamond.py`                                                                                       |
-|----------------------|--------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------|
-| Dataset              | `TIGER-Lab/MMLU-Pro`                                                                                   | `Idavidrein/gpqa`                                                                                         |
-| Prompt Style         | Includes CoT examples per category, followed by test question. <br> `max_tokens=4096`                  | Short prompt: question + shuffled options. <br> `max_tokens=8192` for verbose reasoning                   |
-| Option Shuffling     | Options remain in original dataset order                                                               | Options randomly shuffled because original dataset don't provide order                                           |
-| Answer Extraction    | Same as shared logic                                                                                   | Same as shared logic                                                                                      |
-| Number of Questions  | Defaults to full test set (~12K+)                                                                    | Defaults to full test set (~198)                                                                        |
-| Prompt Prefix        | "The following are multiple choice questions (with answers) about <category>."                         | "The following question is a multiple‑choice question. Please explain your solution…"                    |
-| Token Budget         | 4096                                                                                                   | 8192                                                                                                      |
+| Feature                | `mmlu_pro.py`                                         | `gpqa_diamond.py`                                                                    | `aime_2025.py`                      |
+| ---------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------ | ----------------------------------- |
+| Split used             | `test` for evaluation, `validation` for CoT exemplars | `gpqa_diamond`                                                                       | `default`                             |
+| Expected final answer  | One of A…J                                            | One of A…D                                                                           | Integer only                        |
+| Default question count | 12K+                 | 198 | 30 |
 
-## Usage Examples
+**Note on GPQA randomness:** because options are shuffled without a seed, runs are not deterministic. If you need exact reproducibility, add a fixed seed in the code before loading questions.
 
-### Installation
+## Installation
 
-The required dependencies are listed in the `pyproject.toml` file at the root of this repository. Install them using `uv`:
+Use `uv`.
 
 ```bash
-# From the root of the 'decentralized_inference_benchmark_utils' repository
+# From the root of this repository
 uv sync
 ```
 
-### 1. MMLU‑Pro Evaluation
+## Usage
+
+### General form
 
 ```bash
-python mmlu_pro.py \
-    --model_name openai/gpt-4o-mini \
-    --base_url https://api.openai.com/v1 \
-    --api_key $OPENAI_API_KEY \
-    --output_path mmlu_results.json \
-    --workers 16 \
-    --number_of_questions 200
-````
-
-Evaluates 200 random MMLU‑Pro questions with 16 concurrent workers. If `--number_of_questions` is omitted, all \~12K+ questions are evaluated.
-
-### Using Hugging Face Inference Endpoint
-
-```bash
-python mmlu_pro.py \
-    --model_name huggingface/gemma-2-9b-it \
-    --base_url https://router.huggingface.co/v1 \
-    --api_key $HF_TOKEN \
-    -w 4 \
-    -n 100
+python {mmlu_pro.py|gpqa_diamond.py|aime_2025.py} \
+  --model_name <model_name> \
+  --base_url <openai-compatible-base-url> \
+  --api_key <api_key> \
+  --output_path results.json \
+  --workers 16 \
+  --number_of_questions 200
 ```
 
-### 2. GPQA‑Diamond Evaluation
+This evaluates 200 questions with 16 concurrent workers. Omit `--number_of_questions` to run the full set.
+
+### Hugging Face Inference Endpoint router
 
 ```bash
-python gpqa_diamond.py \
-    --model_name openai/gpt-4o-mini \
-    --base_url https://api.openai.com/v1 \
-    --api_key $OPENAI_API_KEY \
-    --output_path gpqa_results.json \
-    --workers 8 \
-    --number_of_questions 500
+python {mmlu_pro.py|gpqa_diamond.py|aime_2025.py} \
+  -m <model_name> \
+  --base_url https://router.huggingface.co/v1 \
+  --api_key $HF_TOKEN \
+  -w 4 \
+  -n 100
 ```
 
-If `--number_of_questions` is omitted, the script evaluates all \~198 GPQA‑Diamond questions.
+### Ollama (local)
 
----
+```bash
+python {mmlu_pro.py|gpqa_diamond.py|aime_2025.py} \
+  -m <model_name> \
+  --base_url http://localhost:11434/v1 \
+  --api_key "" \
+  -w 4 \
+  -n 30
+```
 
-## Output JSON Format
+## Output format
 
-Both scripts produce the same JSON structure:
+All scripts write a single JSON file:
 
 ```json
 {
@@ -99,17 +93,15 @@ Both scripts produce the same JSON structure:
   "score": 83.5,
   "questions": [
     {
-      "question": "What is the capital of France?",
-      "options": ["London", "Paris", "Berlin"],
+      "question": "…",
+      "options": ["…"],
       "answer": "B",
       "pred": "B",
-      "model_outputs": "Let me think step by step… The capital of France is Paris. The answer is (B).",
-      "prompt": "The following are multiple choice questions (with answers) about geography. ...",
+      "model_outputs": "…The answer is (B).",
+      "prompt": "…",
       "answer_result": "correct"
     }
   ]
 }
 ```
-
-* `number_of_correct / number_of_questions` gives the **accuracy percentage**.
-* `questions` contains detailed logs per question, useful for debugging model behavior.
+For AIME 2025, `answer` and `pred` are integers. For MMLU/GPQA they are letters.
