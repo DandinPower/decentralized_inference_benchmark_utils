@@ -19,13 +19,13 @@ def get_client(base_url: str, api_key: str):
     return client
 
 
-async def call_api(client, model_name: str, prompt: str):
+async def call_api(client, model_name: str, prompt: str, max_tokens: int):
     message_text = [{"role": "user", "content": prompt}]
     completion = await client.chat.completions.create(
         model=model_name,
         messages=message_text,
         temperature=0,
-        max_tokens=4096,
+        max_tokens=max_tokens,
         top_p=1,
         frequency_penalty=0,
         presence_penalty=0,
@@ -62,13 +62,13 @@ def extract_answer(text: str):
     nums = re.findall(r"(?<!\d)[+\-]?\d+(?!\d)(?!\.\d)", text, flags=re.DOTALL)
     return int(nums[-1]) if nums else None
 
-async def single_request(client, model_name, single_question):
+async def single_request(client, model_name, single_question, max_tokens):
     question = single_question["problem"]
     prompt = f"The following question is a math question. Please explain your solution and output the answer in the format \"The answer is (X)\" where X is a clean integer, such as \"The answer is -190,\" without any special syntax.\n\nQuestion:\n\n"
     prompt += question
 
     try:
-        response = await call_api(client, model_name, prompt)
+        response = await call_api(client, model_name, prompt, max_tokens)
         response = response.replace("**", "")
     except Exception as e:
         print("error", e)
@@ -89,6 +89,7 @@ async def evaluate(args: Namespace):
         model_name: str,
         base_url: str,
         api_key: str,
+        max_tokens: int,
     ) -> tuple[int, int]:
         corr, wrong = 0, 0
         client = get_client(base_url, api_key)
@@ -100,7 +101,7 @@ async def evaluate(args: Namespace):
             print(f"[{datetime.now()}][WORKER:{worker_id}][TASK:{task_id}]")
             label = test_questions[task_id]["answer"]
             pred, response, prompt = await single_request(
-                client, model_name, test_questions[task_id]
+                client, model_name, test_questions[task_id], max_tokens
             )
             pred = str(pred)
             async with update_lock:
@@ -142,6 +143,7 @@ async def evaluate(args: Namespace):
                 model_name=args.model_name,
                 base_url=args.base_url,
                 api_key=args.api_key,
+                max_tokens=int(args.max_tokens)
             )
         )
         for i in range(workers)
@@ -195,6 +197,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--api_key", required=True, help="The API key for the OpenAI-compatible API."
+    )
+    parser.add_argument(
+        "--max_tokens", default=4096, help="The max tokens for the OpenAI-compatible API."
     )
     args = parser.parse_args()
     asyncio.run(evaluate(args))
