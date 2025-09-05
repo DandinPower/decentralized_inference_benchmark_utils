@@ -8,7 +8,8 @@ Lightweight scripts to benchmark LLMs on multiple public datasets using a shared
 | ----------------- | ---------------------------------------- | ---------------------------------------------------- |
 | `mmlu_pro.py`     | `TIGER-Lab/MMLU-Pro`                     | Full evaluation with per-category CoT exemplars      |
 | `gpqa_diamond.py` | `Idavidrein/gpqa` (split `gpqa_diamond`) | Quick sanity check on 198 expert-level questions     |
-| `aime_2025.py`    | `yentinglin/aime_2025`                   | AIME 2025 integer answers; strict integer extraction |
+| `aime_2025.py`    | `yentinglin/aime_2025`                   | Difficult MATH questions |
+| `global_mmlu_lite_en.py` | `CohereLabs/Global-MMLU-Lite` (split `en`, `test`) | 200 Culturally Sensitive (CS) and 200 Culturally Agnostic (CA) samples |
 
 All three follow the same flow: load data, build prompts, call an OpenAI-compatible chat API asynchronously, extract answers, and write a JSON report.
 
@@ -26,11 +27,11 @@ All three follow the same flow: load data, build prompts, call an OpenAI-compati
 
 ### Dataset specifics
 
-| Feature               | `mmlu_pro.py`                                         | `gpqa_diamond.py`                                                     | `aime_2025.py`                  |
-| --------------------- | ----------------------------------------------------- | --------------------------------------------------------------------- | --------------------------------|
-| Split used            | `test` for eval, `validation` for CoT exemplars       | `gpqa_diamond` (uses the `train` split of this config)                | `default` (uses the `train` split) |
-| Expected final answer | One of A…J                                            | One of A…D                                                            | Integer only                    |
-| Default question count| 10k+                                                  | 198                                                                   | 30                              |
+| Feature               | `mmlu_pro.py`                                         | `gpqa_diamond.py`                                                     | `aime_2025.py`                  | `global_mmlu_lite_en.py` |
+| --------------------- | ----------------------------------------------------- | --------------------------------------------------------------------- | --------------------------------| ----------------------------|
+| Split used            | `test` for eval, `validation` for CoT exemplars       | `gpqa_diamond` (uses the `train` split of this config)                | `default` (uses the `train` split) | `en` (uses the `test` split)|
+| Expected final answer | One of A…J                                            | One of A…D                                                            | Integer only                    | One of A…D |
+| Default question count| 10k+                                                  | 198                                                                   | 30                              | 400 |
 
 **GPQA determinism:** the position of the correct option is randomized without a fixed seed, so runs are not deterministic. If you need reproducibility, add a fixed seed in the code before loading questions.
 
@@ -48,7 +49,7 @@ uv sync
 ### General form
 
 ```bash
-python {mmlu_pro.py|gpqa_diamond.py|aime_2025.py} \
+python {mmlu_pro.py|gpqa_diamond.py|aime_2025.py|global_mmlu_lite_en.py} \
   --model_name <model_name> \
   --base_url <openai-compatible-base-url> \
   --api_key <api_key> \
@@ -63,7 +64,7 @@ This evaluates 200 questions with 16 concurrent workers. Omit `--number_of_quest
 ### Hugging Face Inference Endpoint router
 
 ```bash
-python {mmlu_pro.py|gpqa_diamond.py|aime_2025.py} \
+python {mmlu_pro.py|gpqa_diamond.py|aime_2025.py|global_mmlu_lite_en.py} \
   -m <model_name> \
   --base_url https://router.huggingface.co/v1 \
   --api_key $HF_TOKEN \
@@ -75,7 +76,7 @@ python {mmlu_pro.py|gpqa_diamond.py|aime_2025.py} \
 ### Ollama (local)
 
 ```bash
-python {mmlu_pro.py|gpqa_diamond.py|aime_2025.py} \
+python {mmlu_pro.py|gpqa_diamond.py|aime_2025.py|global_mmlu_lite_en.py} \
   -m <model_name> \
   --base_url http://localhost:11434/v1 \
   --api_key "" \
