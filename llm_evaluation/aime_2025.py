@@ -75,7 +75,7 @@ async def single_request(client, model_name, single_question, max_tokens):
             break
         except Exception as e:
             if retry >= RETRY:
-                return None, None
+                return None, None, None
             retry += 1
             print(f"Error: {e}, Retry: {retry}/{RETRY}")
 
@@ -120,6 +120,10 @@ async def evaluate(args: Namespace):
                     else:
                         wrong += 1
                         test_questions[task_id]["answer_result"] = "wrong"
+                else:
+                    test_questions[task_id]["pred"] = "None"
+                    test_questions[task_id]["model_outputs"] = "None"
+                    test_questions[task_id]["answer_result"] = "wrong"
                 progress_bar.update(1)
             task_queue.task_done()
         return corr, wrong
