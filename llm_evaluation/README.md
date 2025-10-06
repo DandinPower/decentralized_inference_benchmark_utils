@@ -85,6 +85,17 @@ python {mmlu_pro.py|gpqa_diamond.py|aime_2025.py|global_mmlu_lite_en.py} \
   --max_tokens 1024
 ```
 
+### self host
+
+```bash
+python {mmlu_pro.py|gpqa_diamond.py|aime_2025.py|global_mmlu_lite_en.py} \
+  -m <model_name> \
+  --base_url http://localhost:8080/v1 \
+  --api_key "" \
+  -w 4 \
+  --max_tokens 8192 \
+```
+
 ## Output format
 
 All scripts write a single JSON file:
