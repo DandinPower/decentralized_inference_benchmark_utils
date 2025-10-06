@@ -11,7 +11,7 @@ from openai import AsyncOpenAI
 from tqdm import tqdm
 
 GPQA_DATASET = "Idavidrein/gpqa"
-
+RETRY = 3
 
 def get_client(base_url: str, api_key: str):
     client = AsyncOpenAI(
@@ -84,12 +84,18 @@ async def single_request(client, model_name, single_question, max_tokens):
     prompt = f'The following question is a multiple-choice question. Please explain your solution and output the answer in the format of "The answer is (X)", where X is chosen from one of the options (A, B, C, D).\n\n'
     prompt += format_test_examplpe(question, options)
 
-    try:
-        response = await call_api(client, model_name, prompt, max_tokens)
-        response = response.replace("**", "")
-    except Exception as e:
-        print("error", e)
-        return None, None
+    retry = 0
+    while True:
+        try:
+            response = await call_api(client, model_name, prompt, max_tokens)
+            response = response.replace("**", "")
+            break
+        except Exception as e:
+            if retry >= RETRY:
+                return None, None
+            retry += 1
+            print(f"Error: {e}, Retry: {retry}/{RETRY}")
+            
 
     pred = extract_answer(response)
     return pred, response, prompt

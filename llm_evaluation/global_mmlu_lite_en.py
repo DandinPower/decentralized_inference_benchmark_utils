@@ -10,7 +10,7 @@ from openai import AsyncOpenAI
 from tqdm import tqdm
 
 GLOBAL_MMLU_LITE_EN_DATASET = "CohereLabs/Global-MMLU-Lite"
-
+RETRY = 3
 
 def get_client(base_url: str, api_key: str):
     client = AsyncOpenAI(
@@ -81,12 +81,17 @@ async def single_request(client, model_name, single_question, max_tokens):
 
     prompt += format_test_examplpe(question, option_a, option_b, option_c, option_d)
 
-    try:
-        response = await call_api(client, model_name, prompt, max_tokens)
-        response = response.replace("**", "")
-    except Exception as e:
-        print("error", e)
-        return None, None
+    retry = 0
+    while True:
+        try:
+            response = await call_api(client, model_name, prompt, max_tokens)
+            response = response.replace("**", "")
+            break
+        except Exception as e:
+            if retry >= RETRY:
+                return None, None
+            retry += 1
+            print(f"Error: {e}, Retry: {retry}/{RETRY}")
 
     pred = extract_answer(response)
     return pred, response, prompt
