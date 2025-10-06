@@ -64,7 +64,7 @@ def extract_answer(text: str):
 
 async def single_request(client, model_name, single_question, max_tokens):
     question = single_question["problem"]
-    prompt = f"The following question is a math question. Please explain your solution and output the answer in the format \"The answer is (X)\" where X is a clean integer, such as \"The answer is -190,\" without any special syntax.\n\nQuestion:\n\n"
+    prompt = f"The following question is a math question. Please explain concisely and output the answer in the format \"The answer is (X)\" where X is a clean integer, such as \"The answer is -190,\" without any special syntax.\n\nQuestion:\n\n"
     prompt += question
 
     retry = 0
