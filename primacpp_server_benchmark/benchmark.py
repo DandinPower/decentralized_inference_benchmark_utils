@@ -204,6 +204,11 @@ if __name__ == "__main__":
         help="List of concurrency levels to test, e.g. -c 1 2 4 8 16"
     )
     p.add_argument(
+        "--http_mode", type=str, default="https",
+        choices=["http", "https"],
+        help="Http request mode (default: https)"
+    )
+    p.add_argument(
         "--host", type=str, default="127.0.0.1",
         help="Server host (default: 127.0.0.1)"
     )
@@ -233,7 +238,7 @@ if __name__ == "__main__":
 
     prompt = read_prompt_from_file(args.prompt_path)
     prompt_tokens = count_tokens(prompt)
-    full_url = f"https://{args.host}:{args.port}{args.endpoint}"
+    full_url = f"{args.http_mode}://{args.host}:{args.port}{args.endpoint}"
     headers = {"Content-Type": "application/json"}
     payload = {
         "model": args.model,

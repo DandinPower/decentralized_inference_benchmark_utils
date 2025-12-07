@@ -39,7 +39,8 @@ python benchmark.py \
 | Option                     | Required | Description                                                 |
 | -------------------------- | -------- | ----------------------------------------------------------- |
 | `-p, --prompt-path`        | Yes      | Path to `.txt` file containing the prompt                   |
-| `-c, --concurrency-levels` | No       | List of concurrency levels (default: `1 2 4 8 16`)         |
+| `-c, --concurrency-levels` | No       | List of concurrency levels (default: `1 2 4 8 16`)          |
+| `--http-mode`              | No       | Http request mode (default: https)                          |
 | `--host`                   | No       | Server host (default: `127.0.0.1`)                          |
 | `--port`                   | No       | Server port (default: `8080`)                               |
 | `--endpoint`               | No       | API endpoint path (default: `/v1/chat/completions`)         |
