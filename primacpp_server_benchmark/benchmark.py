@@ -204,7 +204,7 @@ if __name__ == "__main__":
         help="List of concurrency levels to test, e.g. -c 1 2 4 8 16"
     )
     p.add_argument(
-        "--http_mode", type=str, default="https",
+        "--http-mode", type=str, default="https",
         choices=["http", "https"],
         help="Http request mode (default: https)"
     )
