@@ -1,16 +1,18 @@
 #!/bin/bash
 
-CONCURRENCY="8"
-HOST="tw-05.access.glows.ai"
-PORT="26884"
+CONCURRENCY="4"
+HTTP_MODE="http"
+HOST="localhost"
+PORT="8080"
 ENDPOINT="/v1/chat/completions"
 MODEL="qwen2.5-72b-instruct"
 PROMPT_FILE="long_prompt.txt"
 MAX_TOKENS="100"
-CSV_OUTPUT="72b_gpus3_conc8_long.csv"
+CSV_OUTPUT="72b_gpus4_conc4_long.csv"
 
 python benchmark.py \
   -c $CONCURRENCY \
+  --http-mode $HTTP_MODE \
   --host $HOST \
   --port $PORT \
   --endpoint $ENDPOINT \
