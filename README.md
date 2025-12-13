@@ -1,6 +1,6 @@
 # Decentralized Inference Benchmark and Utility Collection
 
-This repository contains a comprehensive suite of tools designed for benchmarking, configuring, and managing multi-node deployments of `prima.cpp` and `petals`. These utilities streamline the process of setting up and evaluating distributed large language model inference.
+This repository contains a suite of tools for benchmarking, configuring, and managing multi-node deployments of `prima.cpp` and `petals`, plus a few general-purpose networking and systems utilities that are useful when validating distributed inference setups.
 
 ## Tools Included
 
@@ -15,6 +15,7 @@ This collection provides the following utilities:
 * **[Prima.cpp Commands Generator](./primacpp_cmds_generator/README.md)**: A Python script to automate the generation of `llama-cli` and `llama-server` commands.
 * **[Prima.cpp Server Benchmark](./primacpp_server_benchmark/README.md)**: A tool for benchmarking the performance of a `prima.cpp` server.
 * **[Client Inference Code for Petals Swarm](./petals_client_for_benchmark/README.md)**: A Python client to run inference on a Petals swarm and benchmark key metrics like Time to First Token (TTFT) and throughput.
+* **[P2P ZeroMQ Benchmark](./p2p_zmq_benchmark/README.md)**: A tiny peer-to-peer ZeroMQ (PUSH/PULL) benchmark that sends a single large multipart payload and reports one-way latency and approximate throughput.
 
 ## License
 
